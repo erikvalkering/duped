@@ -70,19 +70,11 @@ fn scan_files(cli: &Cli) {
     };
 
     println!("📁 Scanning: {}", cli.path.display());
-    println!(
-        "🔧 Strategy: {:?}
-",
-        cli.strategy
-    );
+    println!("🔧 Strategy: {:?}", cli.strategy);
 
     match strategy.scan(&cli.path) {
         Ok(files) => {
-            println!(
-                "Found {} files:
-",
-                files.len()
-            );
+            println!("Found {} files:", files.len());
             for file in &files {
                 println!("  {}", file.display());
             }
@@ -96,20 +88,13 @@ fn scan_files(cli: &Cli) {
 
 fn scan_with_metadata(cli: &Cli) {
     println!("📁 Scanning: {}", cli.path.display());
-    println!(
-        "🔧 Strategy: with-metadata
-"
-    );
+    println!("🔧 Strategy: with-metadata");
 
     let strategy = WithMetadata;
 
     match strategy.scan(&cli.path) {
         Ok(mut files) => {
-            println!(
-                "Found {} files:
-",
-                files.len()
-            );
+            println!("Found {} files:", files.len());
 
             // Sort by size (largest first)
             files.sort_by(|a, b| b.size.cmp(&a.size));
@@ -121,11 +106,7 @@ fn scan_with_metadata(cli: &Cli) {
 
             let total_size: u64 = files.iter().map(|f| f.size).sum();
             let total_mb = total_size as f64 / (1024.0 * 1024.0);
-            println!(
-                "
-📊 Total size: {:.2} MB",
-                total_mb
-            );
+            println!("📊 Total size: {:.2} MB", total_mb);
         }
         Err(e) => {
             eprintln!("Error: {}", e);
