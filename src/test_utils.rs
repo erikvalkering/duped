@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tempfile::TempDir;
 
 pub struct TestStructure {
@@ -38,7 +38,7 @@ impl TestStructure {
 
             // Create files in current directory
             let num_files = std::cmp::min(files_per_dir, n_files - files_created);
-            for i in 0..num_files {
+            for _ in 0..num_files {
                 let file_path = current_dir.join(format!("file_{}.txt", files_created));
                 let mut file = File::create(&file_path)?;
                 writeln!(file, "Content {}", files_created)?;
