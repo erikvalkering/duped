@@ -21,6 +21,10 @@ struct Cli {
     /// Show timing information
     #[arg(short, long)]
     time: bool,
+
+    /// Suppress output (only show timing)
+    #[arg(long)]
+    silent: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -75,6 +79,9 @@ fn scan_files(cli: &Cli) {
     match strategy.scan(&cli.path) {
         Ok(files) => {
             println!("Found {} files:", files.len());
+            if cli.silent {
+                return;
+            }
             for file in &files {
                 println!("  {}", file.display());
             }
