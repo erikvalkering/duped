@@ -135,3 +135,21 @@ impl WithMetadata {
         Ok(())
     }
 }
+
+/// Strategy 6: jwalk crate (super-duper fast)
+pub struct JwalkStrategy;
+
+impl ScanStrategy for JwalkStrategy {
+    fn name(&self) -> &'static str {
+        "jwalk"
+    }
+
+    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
+        Ok(jwalk::WalkDir::new(root)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .map(|e| e.path().to_path_buf())
+            .collect())
+    }
+}

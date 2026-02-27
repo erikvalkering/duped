@@ -37,6 +37,9 @@ enum Strategy {
     WalkdirParallel,
     /// Ignore crate (fastest, respects .gitignore)
     Ignore,
+
+    // Super-duper fast strategy
+    Jwalk,
 }
 
 fn main() {
@@ -71,6 +74,7 @@ fn scan_files(cli: &Cli) {
         Strategy::Walkdir => Box::new(WalkDirStrategy),
         Strategy::WalkdirParallel => Box::new(WalkDirParallel),
         Strategy::Ignore => Box::new(IgnoreStrategy),
+        Strategy::Jwalk => Box::new(JwalkStrategy),
     };
 
     println!("📁 Scanning: {}", cli.path.display());
