@@ -3,15 +3,13 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 // #[cfg(test)]
-pub mod test_utils; // Available in tests and benches
+pub mod test_utils;
 
-/// Scanning strategy trait
 pub trait ScanStrategy {
     fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>>;
     fn name(&self) -> &'static str;
 }
 
-/// Strategy 1: std::fs::read_dir with manual recursion
 pub struct StdFsRecursive;
 
 impl ScanStrategy for StdFsRecursive {
@@ -41,7 +39,6 @@ impl StdFsRecursive {
     }
 }
 
-/// Strategy 2: walkdir crate (most popular)
 pub struct WalkDirStrategy;
 
 impl ScanStrategy for WalkDirStrategy {
@@ -59,27 +56,6 @@ impl ScanStrategy for WalkDirStrategy {
     }
 }
 
-/// Strategy 3: walkdir with parallel iteration
-pub struct WalkDirParallel;
-
-impl ScanStrategy for WalkDirParallel {
-    fn name(&self) -> &'static str {
-        "walkdir_parallel"
-    }
-
-    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
-        Ok(walkdir::WalkDir::new(root)
-            .min_depth(1)
-            .max_depth(100)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .map(|e| e.path().to_path_buf())
-            .collect())
-    }
-}
-
-/// Strategy 4: ignore crate (fastest, respects .gitignore)
 pub struct IgnoreStrategy;
 
 impl ScanStrategy for IgnoreStrategy {
@@ -89,54 +65,16 @@ impl ScanStrategy for IgnoreStrategy {
 
     fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
         Ok(ignore::WalkBuilder::new(root)
-            .hidden(false)
+            .hidden(true)
             .git_ignore(false)
             .build()
             .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().map_or(false, |ft| ft.is_file()))
+            .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
             .map(|e| e.path().to_path_buf())
             .collect())
     }
 }
 
-/// Strategy 5: With metadata collection
-pub struct WithMetadata;
-
-#[derive(Debug)]
-pub struct FileInfo {
-    pub path: PathBuf,
-    pub size: u64,
-    pub modified: std::time::SystemTime,
-}
-
-impl WithMetadata {
-    pub fn scan(&self, root: &Path) -> io::Result<Vec<FileInfo>> {
-        let mut files = Vec::new();
-        self.scan_recursive(root, &mut files)?;
-        Ok(files)
-    }
-
-    fn scan_recursive(&self, dir: &Path, files: &mut Vec<FileInfo>) -> io::Result<()> {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            let metadata = entry.metadata()?;
-
-            if metadata.is_file() {
-                files.push(FileInfo {
-                    path,
-                    size: metadata.len(),
-                    modified: metadata.modified()?,
-                });
-            } else if metadata.is_dir() {
-                self.scan_recursive(&path, files)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-/// Strategy 6: jwalk crate (super-duper fast)
 pub struct JwalkStrategy;
 
 impl ScanStrategy for JwalkStrategy {

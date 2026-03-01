@@ -11,17 +11,14 @@ mod tests {
             TestStructure::create(500, 3, 30).expect("Failed to create test structure");
         let root = test_structure.root_path();
 
-        println!(
-            "
-🔬 Testing {} files",
-            test_structure.files_created
-        );
+        println!("🔬 Testing {} files", test_structure.files_created);
 
         // Benchmark each strategy
         let strategies: Vec<(&str, Box<dyn ScanStrategy>)> = vec![
             ("std::fs", Box::new(StdFsRecursive)),
             ("walkdir", Box::new(WalkDirStrategy)),
             ("ignore", Box::new(IgnoreStrategy)),
+            ("jwalk", Box::new(JwalkStrategy)),
         ];
 
         let mut results = Vec::new();
@@ -61,28 +58,6 @@ mod tests {
             ratio
         );
 
-        println!(
-            "
-✅ All assertions passed"
-        );
-    }
-
-    #[test]
-    fn test_metadata_collection() {
-        let test_structure =
-            TestStructure::create(100, 2, 20).expect("Failed to create test structure");
-        let root = test_structure.root_path();
-
-        let strategy = WithMetadata;
-        let files = strategy.scan(root).expect("Scan failed");
-
-        assert_eq!(files.len(), test_structure.files_created);
-
-        // Verify metadata is collected
-        for file_info in &files {
-            assert!(file_info.size > 0, "File should have non-zero size");
-        }
-
-        println!("✅ Metadata collection working correctly");
+        println!("✅ All assertions passed");
     }
 }

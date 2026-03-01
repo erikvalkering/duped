@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use duped::{
-    IgnoreStrategy, ScanStrategy, StdFsRecursive, WalkDirParallel, WalkDirStrategy, WithMetadata,
+    IgnoreStrategy, JwalkStrategy, ScanStrategy, StdFsRecursive, WalkDirStrategy,
     test_utils::TestStructure,
 };
 use serde::{Deserialize, Serialize};
@@ -112,15 +112,13 @@ fn benchmark_strategies(c: &mut Criterion) {
     let root = test_structure.root_path();
 
     println!(
-        "
-📁 Test structure: {} files in {:?}",
+        "📁 Test structure: {} files in {:?}",
         test_structure.files_created, root
     );
 
     let mut group = c.benchmark_group("directory_scanning");
     group.measurement_time(Duration::from_secs(10));
 
-    // Strategy 1: std::fs recursive
     group.bench_function(BenchmarkId::new("std_fs", "recursive"), |b| {
         let strategy = StdFsRecursive;
         b.iter(|| {
@@ -129,7 +127,6 @@ fn benchmark_strategies(c: &mut Criterion) {
         });
     });
 
-    // Strategy 2: walkdir
     group.bench_function(BenchmarkId::new("walkdir", "standard"), |b| {
         let strategy = WalkDirStrategy;
         b.iter(|| {
@@ -138,16 +135,6 @@ fn benchmark_strategies(c: &mut Criterion) {
         });
     });
 
-    // Strategy 3: walkdir parallel
-    group.bench_function(BenchmarkId::new("walkdir", "parallel"), |b| {
-        let strategy = WalkDirParallel;
-        b.iter(|| {
-            let files = strategy.scan(black_box(root)).unwrap();
-            black_box(files);
-        });
-    });
-
-    // Strategy 4: ignore crate
     group.bench_function(BenchmarkId::new("ignore", "standard"), |b| {
         let strategy = IgnoreStrategy;
         b.iter(|| {
@@ -156,9 +143,8 @@ fn benchmark_strategies(c: &mut Criterion) {
         });
     });
 
-    // Strategy 5: with metadata
-    group.bench_function(BenchmarkId::new("metadata", "full"), |b| {
-        let strategy = WithMetadata;
+    group.bench_function(BenchmarkId::new("jwalk", "standard"), |b| {
+        let strategy = JwalkStrategy;
         b.iter(|| {
             let files = strategy.scan(black_box(root)).unwrap();
             black_box(files);
@@ -177,11 +163,7 @@ fn regression_check(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("regression_check");
 
-    println!(
-        "
-🔍 Running regression check for '{}'",
-        strategy_name
-    );
+    println!("🔍 Running regression check for '{}'", strategy_name);
 
     group.bench_function(strategy_name, |b| {
         b.iter(|| {
@@ -192,10 +174,7 @@ fn regression_check(c: &mut Criterion) {
 
     group.finish();
 
-    println!(
-        "
-✅ Criterion will compare against previous runs automatically"
-    );
+    println!("✅ Criterion will compare against previous runs automatically");
     println!("   Baseline directory: target/criterion/");
 }
 
