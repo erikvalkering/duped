@@ -26,15 +26,47 @@ impl ScanStrategy for StdFsRecursive {
 
 impl StdFsRecursive {
     fn scan_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) -> io::Result<()> {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_file() {
-                files.push(path);
-            } else if path.is_dir() {
-                self.scan_recursive(&path, files)?;
+        let entries = match fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("Error reading directory {}: {}", dir.display(), e);
+                return Err(e);
             }
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    eprintln!("Error reading entry in {}: {}", dir.display(), e);
+                    continue;
+                }
+            };
+
+            let path = entry.path();
+            let meta = match entry.metadata() {
+                // lstat — no symlink following
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("Error reading metadata for {}: {}", path.display(), e);
+                    continue;
+                }
+            };
+
+            if meta.is_file() {
+                files.push(path);
+            } else if meta.is_dir() {
+                // only real dirs, not symlinks to dirs
+                match self.scan_recursive(&path, files) {
+                    Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                        eprintln!("Skipping {}: {}", path.display(), e);
+                    }
+                    result => result?,
+                }
+            }
+            // symlinks are just skipped (meta.is_symlink() == true, neither branch runs)
         }
+
         Ok(())
     }
 }
@@ -65,7 +97,7 @@ impl ScanStrategy for IgnoreStrategy {
 
     fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
         Ok(ignore::WalkBuilder::new(root)
-            .hidden(true)
+            .hidden(false)
             .git_ignore(false)
             .build()
             .filter_map(|e| e.ok())
@@ -84,6 +116,7 @@ impl ScanStrategy for JwalkStrategy {
 
     fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
         Ok(jwalk::WalkDir::new(root)
+            .skip_hidden(false) // ← include hidden files
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
