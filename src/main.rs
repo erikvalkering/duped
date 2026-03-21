@@ -45,7 +45,10 @@ fn main() {
 
     let start = std::time::Instant::now();
 
-    scan_files(&cli);
+    if let Err(e) = scan_files(&cli) {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
 
     if cli.time {
         let elapsed = start.elapsed();
@@ -53,7 +56,7 @@ fn main() {
     }
 }
 
-fn scan_files(cli: &Cli) {
+fn scan_files(cli: &Cli) -> std::io::Result<()> {
     let strategy: Box<dyn ScanStrategy> = match cli.strategy {
         Strategy::StdFs => Box::new(StdFsRecursive),
         Strategy::Walkdir => Box::new(WalkDirStrategy),
@@ -64,19 +67,17 @@ fn scan_files(cli: &Cli) {
     println!("📁 Scanning: {}", cli.path.display());
     println!("🔧 Strategy: {:?}", cli.strategy);
 
-    match strategy.scan(&cli.path) {
-        Ok(files) => {
-            println!("Found {} files:", files.len());
-            if cli.silent {
-                return;
-            }
-            for file in &files {
-                println!("  {}", file.display());
-            }
+    if cli.silent {
+        let count = strategy.scan(&cli.path).count();
+        println!("Found {} files", count);
+    } else {
+        let mut count = 0usize;
+        for path in strategy.scan(&cli.path) {
+            println!("  {}", path.display());
+            count += 1;
         }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
-        }
+        println!("Found {} files", count);
     }
+
+    Ok(())
 }

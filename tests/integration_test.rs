@@ -25,7 +25,7 @@ mod tests {
 
         for (name, strategy) in strategies {
             let start = Instant::now();
-            let files = strategy.scan(root).expect("Scan failed");
+            let files: Vec<_> = strategy.scan(root).collect();
             let duration = start.elapsed();
 
             println!("{:15} {:>8.2?}", name, duration);

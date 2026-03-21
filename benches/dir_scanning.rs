@@ -122,32 +122,36 @@ fn benchmark_strategies(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("std_fs", "recursive"), |b| {
         let strategy = StdFsRecursive;
         b.iter(|| {
-            let files = strategy.scan(black_box(root)).unwrap();
-            black_box(files);
+            for p in strategy.scan(black_box(root)) {
+                black_box(p);
+            }
         });
     });
 
     group.bench_function(BenchmarkId::new("walkdir", "standard"), |b| {
         let strategy = WalkDirStrategy;
         b.iter(|| {
-            let files = strategy.scan(black_box(root)).unwrap();
-            black_box(files);
+            for p in strategy.scan(black_box(root)) {
+                black_box(p);
+            }
         });
     });
 
     group.bench_function(BenchmarkId::new("ignore", "standard"), |b| {
         let strategy = IgnoreStrategy;
         b.iter(|| {
-            let files = strategy.scan(black_box(root)).unwrap();
-            black_box(files);
+            for p in strategy.scan(black_box(root)) {
+                black_box(p);
+            }
         });
     });
 
     group.bench_function(BenchmarkId::new("jwalk", "standard"), |b| {
         let strategy = JwalkStrategy;
         b.iter(|| {
-            let files = strategy.scan(black_box(root)).unwrap();
-            black_box(files);
+            for p in strategy.scan(black_box(root)) {
+                black_box(p);
+            }
         });
     });
 
@@ -167,8 +171,9 @@ fn regression_check(c: &mut Criterion) {
 
     group.bench_function(strategy_name, |b| {
         b.iter(|| {
-            let files = strategy.scan(black_box(root)).unwrap();
-            black_box(files);
+            for p in strategy.scan(black_box(root)) {
+                black_box(p);
+            }
         });
     });
 

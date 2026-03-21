@@ -1,73 +1,79 @@
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 
 // #[cfg(test)]
 pub mod test_utils;
 
+/// Iterator-based scan strategy: returns a boxed iterator producing PathBufs.
+/// Implementations should strive to avoid per-file heap allocations where possible.
 pub trait ScanStrategy {
-    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>>;
     fn name(&self) -> &'static str;
+
+    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a>;
 }
 
 pub struct StdFsRecursive;
+
+struct StdFsIter {
+    stack: Vec<PathBuf>,
+}
+
+impl StdFsIter {
+    fn new(root: &Path) -> Self {
+        StdFsIter {
+            stack: vec![root.to_path_buf()],
+        }
+    }
+}
+
+impl Iterator for StdFsIter {
+    type Item = PathBuf;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(path) = self.stack.pop() {
+            match std::fs::metadata(&path) {
+                Ok(meta) => {
+                    if meta.is_file() {
+                        return Some(path);
+                    } else if meta.is_dir() {
+                        // Read entries and push them onto the stack
+                        match fs::read_dir(&path) {
+                            Ok(entries) => {
+                                // Collect entries into a small vector then push to stack
+                                let mut v = Vec::new();
+                                for e in entries.filter_map(|e| e.ok()) {
+                                    v.push(e.path());
+                                }
+                                // push in reverse so the iterator is depth-first left-to-right
+                                for p in v.into_iter().rev() {
+                                    self.stack.push(p);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Error reading directory {}: {}", path.display(), e);
+                                continue;
+                            }
+                        }
+                    }
+                    // symlinks and others are skipped
+                }
+                Err(e) => {
+                    eprintln!("Error reading metadata for {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+        None
+    }
+}
 
 impl ScanStrategy for StdFsRecursive {
     fn name(&self) -> &'static str {
         "std::fs recursive"
     }
 
-    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
-        let mut files = Vec::new();
-        self.scan_recursive(root, &mut files)?;
-        Ok(files)
-    }
-}
-
-impl StdFsRecursive {
-    fn scan_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) -> io::Result<()> {
-        let entries = match fs::read_dir(dir) {
-            Ok(e) => e,
-            Err(e) => {
-                eprintln!("Error reading directory {}: {}", dir.display(), e);
-                return Err(e);
-            }
-        };
-
-        for entry in entries {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    eprintln!("Error reading entry in {}: {}", dir.display(), e);
-                    continue;
-                }
-            };
-
-            let path = entry.path();
-            let meta = match entry.metadata() {
-                // lstat — no symlink following
-                Ok(m) => m,
-                Err(e) => {
-                    eprintln!("Error reading metadata for {}: {}", path.display(), e);
-                    continue;
-                }
-            };
-
-            if meta.is_file() {
-                files.push(path);
-            } else if meta.is_dir() {
-                // only real dirs, not symlinks to dirs
-                match self.scan_recursive(&path, files) {
-                    Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                        eprintln!("Skipping {}: {}", path.display(), e);
-                    }
-                    result => result?,
-                }
-            }
-            // symlinks are just skipped (meta.is_symlink() == true, neither branch runs)
-        }
-
-        Ok(())
+    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
+        Box::new(StdFsIter::new(root))
     }
 }
 
@@ -78,13 +84,14 @@ impl ScanStrategy for WalkDirStrategy {
         "walkdir"
     }
 
-    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
-        Ok(walkdir::WalkDir::new(root)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .map(|e| e.path().to_path_buf())
-            .collect())
+    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
+        Box::new(
+            walkdir::WalkDir::new(root)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file())
+                .map(|e| e.path().to_path_buf()),
+        )
     }
 }
 
@@ -95,15 +102,16 @@ impl ScanStrategy for IgnoreStrategy {
         "ignore"
     }
 
-    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
-        Ok(ignore::WalkBuilder::new(root)
-            .hidden(false)
-            .git_ignore(false)
-            .build()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
-            .map(|e| e.path().to_path_buf())
-            .collect())
+    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
+        Box::new(
+            ignore::WalkBuilder::new(root)
+                .hidden(false)
+                .git_ignore(false)
+                .build()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
+                .map(|e| e.path().to_path_buf()),
+        )
     }
 }
 
@@ -114,13 +122,12 @@ impl ScanStrategy for JwalkStrategy {
         "jwalk"
     }
 
-    fn scan(&self, root: &Path) -> io::Result<Vec<PathBuf>> {
-        Ok(jwalk::WalkDir::new(root)
-            .skip_hidden(false) // ← include hidden files
+    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
+        Box::new(jwalk::WalkDir::new(root)
+            .skip_hidden(false)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
-            .map(|e| e.path().to_path_buf())
-            .collect())
+            .map(|e| e.path().to_path_buf()))
     }
 }
