@@ -1,10 +1,11 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use duped::{
     IgnoreStrategy, JwalkStrategy, ScanStrategy, StdFsRecursive, WalkDirStrategy,
     test_utils::TestStructure,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::hint::black_box;
 use std::path::PathBuf;
 use std::time::Duration;
 
