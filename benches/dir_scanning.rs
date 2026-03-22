@@ -120,41 +120,24 @@ fn benchmark_strategies(c: &mut Criterion) {
     let mut group = c.benchmark_group("directory_scanning");
     group.measurement_time(Duration::from_secs(10));
 
-    group.bench_function(BenchmarkId::new("std_fs", "recursive"), |b| {
-        let strategy = StdFsRecursive;
-        b.iter(|| {
-            for p in strategy.scan(black_box(root)) {
-                black_box(p);
-            }
-        });
-    });
+    let strategies: Vec<Box<dyn ScanStrategy>> = vec![
+        Box::new(StdFsRecursive),
+        Box::new(WalkDirStrategy),
+        Box::new(IgnoreStrategy),
+        Box::new(JwalkStrategy),
+    ];
 
-    group.bench_function(BenchmarkId::new("walkdir", "standard"), |b| {
-        let strategy = WalkDirStrategy;
-        b.iter(|| {
-            for p in strategy.scan(black_box(root)) {
-                black_box(p);
-            }
+    for strategy in strategies.iter() {
+        let id = BenchmarkId::new(strategy.name(), "standard");
+        group.bench_function(id, |b| {
+            let s = strategy.as_ref();
+            b.iter(|| {
+                for p in s.scan(black_box(root)) {
+                    black_box(p);
+                }
+            });
         });
-    });
-
-    group.bench_function(BenchmarkId::new("ignore", "standard"), |b| {
-        let strategy = IgnoreStrategy;
-        b.iter(|| {
-            for p in strategy.scan(black_box(root)) {
-                black_box(p);
-            }
-        });
-    });
-
-    group.bench_function(BenchmarkId::new("jwalk", "standard"), |b| {
-        let strategy = JwalkStrategy;
-        b.iter(|| {
-            for p in strategy.scan(black_box(root)) {
-                black_box(p);
-            }
-        });
-    });
+    };
 
     group.finish();
 }
