@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use duped::{
-    IgnoreStrategy, JwalkStrategy, ScanStrategy, StdFsRecursive, WalkDirStrategy,
+    IgnoreStrategy, JwalkStrategy, ScanStrategy, StdFsStrategy, WalkDirStrategy,
     test_utils::TestStructure,
 };
 use std::hint::black_box;
@@ -21,7 +21,7 @@ fn benchmark_strategies(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     let strategies: Vec<Box<dyn ScanStrategy>> = vec![
-        Box::new(StdFsRecursive),
+        Box::new(StdFsStrategy),
         Box::new(WalkDirStrategy),
         Box::new(IgnoreStrategy),
         Box::new(JwalkStrategy),

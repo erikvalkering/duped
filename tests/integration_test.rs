@@ -14,22 +14,22 @@ mod tests {
         println!("🔬 Testing {} files", test_structure.files_created);
 
         // Benchmark each strategy
-        let strategies: Vec<(&str, Box<dyn ScanStrategy>)> = vec![
-            ("std::fs", Box::new(StdFsRecursive)),
-            ("walkdir", Box::new(WalkDirStrategy)),
-            ("ignore", Box::new(IgnoreStrategy)),
-            ("jwalk", Box::new(JwalkStrategy)),
+        let strategies: Vec<Box<dyn ScanStrategy>> = vec![
+            Box::new(StdFsStrategy),
+            Box::new(WalkDirStrategy),
+            Box::new(IgnoreStrategy),
+            Box::new(JwalkStrategy),
         ];
 
         let mut results = Vec::new();
 
-        for (name, strategy) in strategies {
+        for strategy in strategies {
             let start = Instant::now();
             let files: Vec<_> = strategy.scan(root).collect();
             let duration = start.elapsed();
 
-            println!("{:15} {:>8.2?}", name, duration);
-            results.push((name, duration, files.len()));
+            println!("{:15} {:>8.2?}", strategy.name(), duration);
+            results.push((strategy.name(), duration, files.len()));
         }
 
         // Assert: All strategies find the same number of files

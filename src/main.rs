@@ -58,7 +58,7 @@ fn main() {
 
 fn scan_files(cli: &Cli) -> std::io::Result<()> {
     let strategy: Box<dyn ScanStrategy> = match cli.strategy {
-        Strategy::StdFs => Box::new(StdFsRecursive),
+        Strategy::StdFs => Box::new(StdFsStrategy),
         Strategy::Walkdir => Box::new(WalkDirStrategy),
         Strategy::Ignore => Box::new(IgnoreStrategy),
         Strategy::Jwalk => Box::new(JwalkStrategy),

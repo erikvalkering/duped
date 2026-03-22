@@ -12,7 +12,7 @@ pub trait ScanStrategy {
     fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a>;
 }
 
-pub struct StdFsRecursive;
+pub struct StdFsStrategy;
 
 struct StdFsIter {
     stack: Vec<PathBuf>,
@@ -67,9 +67,9 @@ impl Iterator for StdFsIter {
     }
 }
 
-impl ScanStrategy for StdFsRecursive {
+impl ScanStrategy for StdFsStrategy {
     fn name(&self) -> &'static str {
-        "std::fs recursive"
+        "std::fs"
     }
 
     fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
