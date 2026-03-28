@@ -27,7 +27,7 @@ impl TestStructure {
     fn create_structure(
         root: &Path,
         n_files: usize,
-        depth: usize,
+        _depth: usize,
         files_per_dir: usize,
     ) -> std::io::Result<usize> {
         // Treat files_per_dir as the max files per leaf directory.

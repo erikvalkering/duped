@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 // #[cfg(test)]
 pub mod test_utils;
@@ -129,5 +130,68 @@ impl ScanStrategy for JwalkStrategy {
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
             .map(|e| e.path().to_path_buf()))
+    }
+}
+
+/// Represents a group of duplicate files (all with the same content).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DuplicateGroup {
+    pub files: Vec<PathBuf>,
+}
+
+impl DuplicateGroup {
+    pub fn new(files: Vec<PathBuf>) -> Self {
+        DuplicateGroup { files }
+    }
+
+    pub fn size(&self) -> usize {
+        self.files.len()
+    }
+}
+
+/// Strategy for detecting duplicate files.
+pub trait DeduplicateStrategy {
+    fn name(&self) -> &'static str;
+
+    /// Takes a set of file paths and returns groups of duplicates.
+    /// Only returns groups with 2+ files (excludes unique files).
+    fn find_duplicates(&self, files: Vec<PathBuf>) -> std::io::Result<Vec<DuplicateGroup>>;
+}
+
+/// Reference implementation: compares full file contents.
+pub struct FullContentStrategy;
+
+impl DeduplicateStrategy for FullContentStrategy {
+    fn name(&self) -> &'static str {
+        "full-content"
+    }
+
+    fn find_duplicates(&self, files: Vec<PathBuf>) -> std::io::Result<Vec<DuplicateGroup>> {
+        // Map: file contents -> list of paths with that content
+        let mut content_to_paths: HashMap<Vec<u8>, Vec<PathBuf>> = HashMap::new();
+
+        for path in files {
+            match fs::read(&path) {
+                Ok(contents) => {
+                    content_to_paths
+                        .entry(contents)
+                        .or_insert_with(Vec::new)
+                        .push(path);
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not read file {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+
+        // Filter to only groups with 2+ files (duplicates) and convert to DuplicateGroup
+        let duplicate_groups: Vec<DuplicateGroup> = content_to_paths
+            .into_values()
+            .filter(|group| group.len() >= 2)
+            .map(|group| DuplicateGroup::new(group))
+            .collect();
+
+        Ok(duplicate_groups)
     }
 }
