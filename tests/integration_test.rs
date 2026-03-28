@@ -345,4 +345,116 @@ mod tests {
         assert_eq!(groups[0].size_bytes, 500);
         assert_eq!(groups[0].file_count(), 2);
     }
+
+    #[test]
+    fn test_partial_content_first_bytes() {
+        // Create a temporary directory with files that differ only at the end
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Files with same first 10 bytes but different endings
+        let mut f1 = fs::File::create(root_path.join("f1.txt"))
+            .expect("Failed to create f1");
+        f1.write_all(b"0123456789AAAA").expect("Failed to write");
+
+        let mut f2 = fs::File::create(root_path.join("f2.txt"))
+            .expect("Failed to create f2");
+        f2.write_all(b"0123456789BBBB").expect("Failed to write");
+
+        let mut f3 = fs::File::create(root_path.join("f3.txt"))
+            .expect("Failed to create f3");
+        f3.write_all(b"9876543210CCCC").expect("Failed to write");
+
+        // Scan files
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 3);
+
+        // Group by first 10 bytes
+        let dedupe = PartialContentStrategy::new(10);
+        let groups = dedupe
+            .find_duplicates(files, None)
+            .expect("Failed to find duplicates");
+
+        // Should find 1 group (f1 and f2 have same first 10 bytes)
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].file_count(), 2);
+    }
+
+    #[test]
+    fn test_partial_content_last_bytes() {
+        // Create files that differ only at the beginning
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Files with same last 10 bytes but different starts
+        let mut f1 = fs::File::create(root_path.join("f1.txt"))
+            .expect("Failed to create f1");
+        f1.write_all(b"AAAA0123456789").expect("Failed to write");
+
+        let mut f2 = fs::File::create(root_path.join("f2.txt"))
+            .expect("Failed to create f2");
+        f2.write_all(b"BBBB0123456789").expect("Failed to write");
+
+        let mut f3 = fs::File::create(root_path.join("f3.txt"))
+            .expect("Failed to create f3");
+        f3.write_all(b"CCCC9876543210").expect("Failed to write");
+
+        // Scan files
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 3);
+
+        // Group by last 10 bytes (negative = from end)
+        let dedupe = PartialContentStrategy::new(-10);
+        let groups = dedupe
+            .find_duplicates(files, None)
+            .expect("Failed to find duplicates");
+
+        // Should find 1 group (f1 and f2 have same last 10 bytes)
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].file_count(), 2);
+    }
+
+    #[test]
+    fn test_partial_content_with_min_size() {
+        // Create files with different sizes
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Small files: 5 bytes
+        let mut small1 = fs::File::create(root_path.join("small1.txt"))
+            .expect("Failed to create small1");
+        small1.write_all(b"hello").expect("Failed to write");
+
+        let mut small2 = fs::File::create(root_path.join("small2.txt"))
+            .expect("Failed to create small2");
+        small2.write_all(b"hello").expect("Failed to write");
+
+        // Large files: 100 bytes with same first 50
+        let large_content = "x".repeat(100);
+        let mut large1 = fs::File::create(root_path.join("large1.txt"))
+            .expect("Failed to create large1");
+        large1.write_all(large_content.as_bytes()).expect("Failed to write");
+
+        let mut large2 = fs::File::create(root_path.join("large2.txt"))
+            .expect("Failed to create large2");
+        large2.write_all(large_content.as_bytes()).expect("Failed to write");
+
+        // Scan files
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 4);
+
+        // Group by first 50 bytes with min_size filter
+        let dedupe = PartialContentStrategy::new(50);
+        let groups = dedupe
+            .find_duplicates(files, Some(50))
+            .expect("Failed to find duplicates");
+
+        // Should only find the large files group (small files filtered out)
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].file_count(), 2);
+        assert_eq!(groups[0].size_bytes, 100);
+    }
 }

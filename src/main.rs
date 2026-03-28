@@ -29,6 +29,10 @@ struct Cli {
     /// Minimum file size in bytes (filters to show only duplicates of files >= this size)
     #[arg(long)]
     min_size: Option<u64>,
+
+    /// Number of bytes to compare for partial strategy (positive: first n bytes, negative: last n bytes)
+    #[arg(long, default_value_t = 512)]
+    partial_bytes: i64,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -43,10 +47,13 @@ enum Strategy {
     Jwalk,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Debug, Clone, PartialEq, Eq, ValueEnum)]
 enum DedupeStrategy {
     /// Group by size only (fast, no content comparison)
     SizeOnly,
+    /// Compare first/last n bytes of files
+    /// Positive: first n bytes, Negative: last |n| bytes
+    Partial,
     /// Compare full file contents (accurate, slower)
     FullContent,
 }
@@ -82,6 +89,7 @@ fn find_duplicates(cli: &Cli) -> std::io::Result<()> {
 
     let dedupe_strategy: Box<dyn DeduplicateStrategy> = match cli.dedupe {
         DedupeStrategy::SizeOnly => Box::new(SizeOnlyStrategy),
+        DedupeStrategy::Partial => Box::new(PartialContentStrategy::new(cli.partial_bytes)),
         DedupeStrategy::FullContent => Box::new(FullContentStrategy),
     };
 

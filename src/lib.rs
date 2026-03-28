@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::io::{Read, Seek};
 
 // #[cfg(test)]
 pub mod test_utils;
@@ -276,5 +277,102 @@ impl DeduplicateStrategy for SizeOnlyStrategy {
             .collect();
 
         Ok(duplicate_groups)
+    }
+}
+
+/// Strategy: groups files by comparing first/last n bytes.
+/// This is faster than full-content comparison but more accurate than size-only.
+pub struct PartialContentStrategy {
+    bytes: i64,
+}
+
+impl PartialContentStrategy {
+    pub fn new(bytes: i64) -> Self {
+        PartialContentStrategy { bytes }
+    }
+}
+
+impl DeduplicateStrategy for PartialContentStrategy {
+    fn name(&self) -> &'static str {
+        "partial-content"
+    }
+
+    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
+        // First pass: get file sizes and metadata, filter early
+        let mut files_with_sizes: Vec<(PathBuf, u64)> = Vec::new();
+
+        for path in files {
+            match fs::metadata(&path) {
+                Ok(metadata) => {
+                    let size = metadata.len();
+                    // Early filter: skip files below minimum size
+                    if let Some(min) = min_size {
+                        if size < min {
+                            continue;
+                        }
+                    }
+                    files_with_sizes.push((path, size));
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+
+        // Second pass: read partial content and group
+        // Map: partial content -> list of (path, size) pairs
+        let mut content_to_paths: HashMap<Vec<u8>, Vec<(PathBuf, u64)>> = HashMap::new();
+
+        for (path, size) in files_with_sizes {
+            match self.read_partial(&path, size) {
+                Ok(partial_content) => {
+                    content_to_paths
+                        .entry(partial_content)
+                        .or_insert_with(Vec::new)
+                        .push((path, size));
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not read partial content from file {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+
+        // Filter to only groups with 2+ files (duplicates) and convert to DuplicateGroup
+        let duplicate_groups: Vec<DuplicateGroup> = content_to_paths
+            .into_values()
+            .filter(|group| group.len() >= 2)
+            .map(|group| {
+                let size_bytes = group.get(0).map(|(_, size)| *size).unwrap_or(0);
+                let paths: Vec<PathBuf> = group.into_iter().map(|(path, _)| path).collect();
+                DuplicateGroup::new(paths, size_bytes)
+            })
+            .collect();
+
+        Ok(duplicate_groups)
+    }
+}
+
+impl PartialContentStrategy {
+    /// Read first or last n bytes from a file.
+    /// Positive n: read first n bytes
+    /// Negative n: read last |n| bytes
+    fn read_partial(&self, path: &Path, file_size: u64) -> std::io::Result<Vec<u8>> {
+        let bytes_to_read = self.bytes.abs() as u64;
+        let actual_bytes = std::cmp::min(bytes_to_read, file_size);
+
+        let mut file = fs::File::open(path)?;
+        let mut buffer = vec![0u8; actual_bytes as usize];
+
+        if self.bytes < 0 {
+            // Read from the end
+            let seek_pos = file_size - actual_bytes;
+            file.seek(std::io::SeekFrom::Start(seek_pos))?;
+        }
+        // else: read from the start (default file position is 0)
+
+        file.read_exact(&mut buffer)?;
+        Ok(buffer)
     }
 }
