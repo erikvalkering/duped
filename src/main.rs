@@ -90,37 +90,27 @@ fn find_duplicates(cli: &Cli) -> std::io::Result<()> {
 
     // Collect files from the scanner - we need this due to iterator lifetime constraints
     let files: Vec<_> = strategy.scan(&cli.path).collect();
-    let duplicate_groups = dedupe_strategy.find_duplicates(files)?;
+    
+    // Find duplicates - pass min_size for early filtering
+    let duplicate_groups = dedupe_strategy.find_duplicates(files, cli.min_size)?;
 
     if !cli.silent && !duplicate_groups.is_empty() {
         let total_files: usize = duplicate_groups.iter().map(|g| g.file_count()).sum();
         eprintln!("Found {} files in {} duplicate groups", total_files, duplicate_groups.len());
     }
 
-    // Apply size filter
-    let filtered_groups: Vec<_> = duplicate_groups
-        .into_iter()
-        .filter(|group| {
-            if let Some(min_size) = cli.min_size {
-                group.size_bytes >= min_size
-            } else {
-                true
-            }
-        })
-        .collect();
-
     // Calculate statistics
-    let total_duplicate_files: usize = filtered_groups.iter().map(|g| g.file_count()).sum();
-    let total_wasted_bytes: u64 = filtered_groups.iter().map(|g| {
+    let total_duplicate_files: usize = duplicate_groups.iter().map(|g| g.file_count()).sum();
+    let total_wasted_bytes: u64 = duplicate_groups.iter().map(|g| {
         // Wasted space = (count - 1) * size_bytes (we keep one original)
         (g.file_count() as u64 - 1) * g.size_bytes
     }).sum();
 
     // Output as JSON
     let json = serde_json::json!({
-        "duplicate_groups": filtered_groups,
+        "duplicate_groups": duplicate_groups,
         "statistics": {
-            "total_groups": filtered_groups.len(),
+            "total_groups": duplicate_groups.len(),
             "total_duplicate_files": total_duplicate_files,
             "total_wasted_bytes": total_wasted_bytes,
         }

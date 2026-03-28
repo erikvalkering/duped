@@ -131,7 +131,7 @@ mod tests {
         // Find duplicates
         let dedupe = FullContentStrategy;
         let groups = dedupe
-            .find_duplicates(files)
+            .find_duplicates(files, None)
             .expect("Failed to find duplicates");
 
         // Should have 2 groups: one with 3 files (content1) and one with 2 files (content2)
@@ -164,7 +164,7 @@ mod tests {
         // Find duplicates
         let dedupe = FullContentStrategy;
         let groups = dedupe
-            .find_duplicates(files)
+            .find_duplicates(files, None)
             .expect("Failed to find duplicates");
 
         // Should have 0 groups (no duplicates)
@@ -202,7 +202,7 @@ mod tests {
 
         let dedupe = FullContentStrategy;
         let all_groups = dedupe
-            .find_duplicates(files)
+            .find_duplicates(files, None)
             .expect("Failed to find duplicates");
 
         // Should find 2 groups before filtering
@@ -217,5 +217,47 @@ mod tests {
         // Should only have the large group (100 bytes)
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].size_bytes, 100);
+    }
+
+    #[test]
+    fn test_early_size_filtering() {
+        // Create files with different sizes to test early filtering
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Small duplicates: 10 bytes each
+        let mut small1 = fs::File::create(root_path.join("small1.txt"))
+            .expect("Failed to create small1");
+        small1.write_all(b"small12345").expect("Failed to write");
+
+        let mut small2 = fs::File::create(root_path.join("small2.txt"))
+            .expect("Failed to create small2");
+        small2.write_all(b"small12345").expect("Failed to write");
+
+        // Large duplicates: 1000 bytes each
+        let large_content = "x".repeat(1000);
+        let mut large1 = fs::File::create(root_path.join("large1.txt"))
+            .expect("Failed to create large1");
+        large1.write_all(large_content.as_bytes()).expect("Failed to write");
+
+        let mut large2 = fs::File::create(root_path.join("large2.txt"))
+            .expect("Failed to create large2");
+        large2.write_all(large_content.as_bytes()).expect("Failed to write");
+
+        // Scan files
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 4);
+
+        // Find duplicates with min_size = 100 (filters out small files before reading)
+        let dedupe = FullContentStrategy;
+        let groups = dedupe
+            .find_duplicates(files, Some(100))
+            .expect("Failed to find duplicates");
+
+        // Should only find 1 group (the large duplicates)
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].size_bytes, 1000);
+        assert_eq!(groups[0].file_count(), 2);
     }
 }

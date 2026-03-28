@@ -162,7 +162,8 @@ pub trait DeduplicateStrategy {
 
     /// Takes a vector of file paths and returns groups of duplicates.
     /// Only returns groups with 2+ files (excludes unique files).
-    fn find_duplicates(&self, files: Vec<PathBuf>) -> std::io::Result<Vec<DuplicateGroup>>;
+    /// Files below min_size are skipped without reading their contents.
+    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>>;
 }
 
 /// Reference implementation: compares full file contents.
@@ -173,21 +174,36 @@ impl DeduplicateStrategy for FullContentStrategy {
         "full-content"
     }
 
-    fn find_duplicates(&self, files: Vec<PathBuf>) -> std::io::Result<Vec<DuplicateGroup>> {
+    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
+        // First pass: get file sizes and filter early
+        let mut files_with_sizes: Vec<(PathBuf, u64)> = Vec::new();
+        
+        for path in files {
+            match fs::metadata(&path) {
+                Ok(metadata) => {
+                    let size = metadata.len();
+                    // Early filter: skip files below minimum size
+                    if let Some(min) = min_size {
+                        if size < min {
+                            continue;
+                        }
+                    }
+                    files_with_sizes.push((path, size));
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+        
+        // Second pass: read and group by content
         // Map: file contents -> list of (path, size) pairs with that content
         let mut content_to_paths: HashMap<Vec<u8>, Vec<(PathBuf, u64)>> = HashMap::new();
 
-        for path in files {
+        for (path, size) in files_with_sizes {
             match fs::read(&path) {
                 Ok(contents) => {
-                    // Get file size
-                    let size = match fs::metadata(&path) {
-                        Ok(metadata) => metadata.len(),
-                        Err(e) => {
-                            eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
-                            continue;
-                        }
-                    };
                     content_to_paths
                         .entry(contents)
                         .or_insert_with(Vec::new)
