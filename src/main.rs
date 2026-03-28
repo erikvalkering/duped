@@ -25,6 +25,10 @@ struct Cli {
     /// Suppress output (only show timing)
     #[arg(long)]
     silent: bool,
+
+    /// Minimum file size in bytes (filters to show only duplicates of files >= this size)
+    #[arg(long)]
+    min_size: Option<u64>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -78,21 +82,48 @@ fn find_duplicates(cli: &Cli) -> std::io::Result<()> {
         DedupeStrategy::FullContent => Box::new(FullContentStrategy),
     };
 
-    eprintln!("📁 Scanning: {}", cli.path.display());
-    eprintln!("🔧 Scan strategy: {:?}", cli.strategy);
-    eprintln!("🔍 Dedupe strategy: {:?}", cli.dedupe);
+    if !cli.silent {
+        eprintln!("📁 Scanning: {}", cli.path.display());
+        eprintln!("🔧 Scan strategy: {:?}", cli.strategy);
+        eprintln!("🔍 Dedupe strategy: {:?}", cli.dedupe);
+    }
 
     // Scan files
     let files: Vec<_> = strategy.scan(&cli.path).collect();
-    eprintln!("Found {} files", files.len());
+    if !cli.silent {
+        eprintln!("Found {} files", files.len());
+    }
 
     // Find duplicates
     let duplicate_groups = dedupe_strategy.find_duplicates(files)?;
 
+    // Apply size filter
+    let filtered_groups: Vec<_> = duplicate_groups
+        .into_iter()
+        .filter(|group| {
+            if let Some(min_size) = cli.min_size {
+                group.size_bytes >= min_size
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    // Calculate statistics
+    let total_duplicate_files: usize = filtered_groups.iter().map(|g| g.file_count()).sum();
+    let total_wasted_bytes: u64 = filtered_groups.iter().map(|g| {
+        // Wasted space = (count - 1) * size_bytes (we keep one original)
+        (g.file_count() as u64 - 1) * g.size_bytes
+    }).sum();
+
     // Output as JSON
     let json = serde_json::json!({
-        "duplicate_groups": duplicate_groups,
-        "total_groups": duplicate_groups.len(),
+        "duplicate_groups": filtered_groups,
+        "statistics": {
+            "total_groups": filtered_groups.len(),
+            "total_duplicate_files": total_duplicate_files,
+            "total_wasted_bytes": total_wasted_bytes,
+        }
     });
 
     println!("{}", serde_json::to_string_pretty(&json)?);

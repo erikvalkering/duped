@@ -137,15 +137,22 @@ impl ScanStrategy for JwalkStrategy {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DuplicateGroup {
     pub files: Vec<PathBuf>,
+    /// Size in bytes of each file (all duplicates have same size)
+    pub size_bytes: u64,
 }
 
 impl DuplicateGroup {
-    pub fn new(files: Vec<PathBuf>) -> Self {
-        DuplicateGroup { files }
+    pub fn new(files: Vec<PathBuf>, size_bytes: u64) -> Self {
+        DuplicateGroup { files, size_bytes }
     }
 
-    pub fn size(&self) -> usize {
+    pub fn file_count(&self) -> usize {
         self.files.len()
+    }
+
+    /// Total size of all duplicates in this group (size_bytes * count)
+    pub fn total_size(&self) -> u64 {
+        self.size_bytes * (self.file_count() as u64)
     }
 }
 
@@ -167,16 +174,24 @@ impl DeduplicateStrategy for FullContentStrategy {
     }
 
     fn find_duplicates(&self, files: Vec<PathBuf>) -> std::io::Result<Vec<DuplicateGroup>> {
-        // Map: file contents -> list of paths with that content
-        let mut content_to_paths: HashMap<Vec<u8>, Vec<PathBuf>> = HashMap::new();
+        // Map: file contents -> list of (path, size) pairs with that content
+        let mut content_to_paths: HashMap<Vec<u8>, Vec<(PathBuf, u64)>> = HashMap::new();
 
         for path in files {
             match fs::read(&path) {
                 Ok(contents) => {
+                    // Get file size
+                    let size = match fs::metadata(&path) {
+                        Ok(metadata) => metadata.len(),
+                        Err(e) => {
+                            eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                            continue;
+                        }
+                    };
                     content_to_paths
                         .entry(contents)
                         .or_insert_with(Vec::new)
-                        .push(path);
+                        .push((path, size));
                 }
                 Err(e) => {
                     eprintln!("Warning: Could not read file {}: {}", path.display(), e);
@@ -189,7 +204,12 @@ impl DeduplicateStrategy for FullContentStrategy {
         let duplicate_groups: Vec<DuplicateGroup> = content_to_paths
             .into_values()
             .filter(|group| group.len() >= 2)
-            .map(|group| DuplicateGroup::new(group))
+            .map(|group| {
+                // All files in the group have the same size (same content)
+                let size_bytes = group.get(0).map(|(_, size)| *size).unwrap_or(0);
+                let paths: Vec<PathBuf> = group.into_iter().map(|(path, _)| path).collect();
+                DuplicateGroup::new(paths, size_bytes)
+            })
             .collect();
 
         Ok(duplicate_groups)

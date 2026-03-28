@@ -7,6 +7,36 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn test_duplicate_group_with_size() {
+        // Test that DuplicateGroup correctly stores and computes sizes
+        let paths = vec![
+            std::path::PathBuf::from("/tmp/file1.txt"),
+            std::path::PathBuf::from("/tmp/file2.txt"),
+            std::path::PathBuf::from("/tmp/file3.txt"),
+        ];
+        let group = DuplicateGroup::new(paths, 1024);
+        
+        assert_eq!(group.file_count(), 3);
+        assert_eq!(group.size_bytes, 1024);
+        assert_eq!(group.total_size(), 3072); // 3 * 1024
+    }
+
+    #[test]
+    fn test_wasted_space_calculation() {
+        // Test that wasted space is correctly calculated (count - 1) * size
+        let paths = vec![
+            std::path::PathBuf::from("/tmp/file1.txt"),
+            std::path::PathBuf::from("/tmp/file2.txt"),
+        ];
+        let group = DuplicateGroup::new(paths, 100);
+        
+        // Wasted space = (2 - 1) * 100 = 100
+        let wasted = (group.file_count() as u64 - 1) * group.size_bytes;
+        assert_eq!(wasted, 100);
+    }
+
+
+    #[test]
     fn test_relative_performance_ranking() {
         // Create test structure
         let test_structure =
@@ -109,7 +139,7 @@ mod tests {
         assert_eq!(groups.len(), 2, "Should have 2 duplicate groups");
 
         // Check sizes
-        let mut sizes: Vec<_> = groups.iter().map(|g| g.size()).collect();
+        let mut sizes: Vec<_> = groups.iter().map(|g| g.file_count()).collect();
         sizes.sort();
         assert_eq!(sizes, vec![2, 3], "Group sizes should be [2, 3]");
     }
@@ -141,5 +171,54 @@ mod tests {
 
         // Should have 0 groups (no duplicates)
         assert_eq!(groups.len(), 0, "Should have no duplicate groups");
+    }
+
+    #[test]
+    fn test_size_filter_on_duplicates() {
+        // Create files with different sizes
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Small duplicate group: 5 bytes each
+        let mut f1 = fs::File::create(root_path.join("small1.txt"))
+            .expect("Failed to create small1");
+        f1.write_all(b"hello").expect("Failed to write");
+
+        let mut f2 = fs::File::create(root_path.join("small2.txt"))
+            .expect("Failed to create small2");
+        f2.write_all(b"hello").expect("Failed to write");
+
+        // Large duplicate group: 100 bytes each
+        let large_content = "x".repeat(100);
+        let mut f3 = fs::File::create(root_path.join("large1.txt"))
+            .expect("Failed to create large1");
+        f3.write_all(large_content.as_bytes()).expect("Failed to write");
+
+        let mut f4 = fs::File::create(root_path.join("large2.txt"))
+            .expect("Failed to create large2");
+        f4.write_all(large_content.as_bytes()).expect("Failed to write");
+
+        // Scan and find duplicates
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 4);
+
+        let dedupe = FullContentStrategy;
+        let all_groups = dedupe
+            .find_duplicates(files)
+            .expect("Failed to find duplicates");
+
+        // Should find 2 groups before filtering
+        assert_eq!(all_groups.len(), 2);
+
+        // Test filter: only groups >= 50 bytes
+        let filtered: Vec<_> = all_groups
+            .into_iter()
+            .filter(|g| g.size_bytes >= 50)
+            .collect();
+
+        // Should only have the large group (100 bytes)
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].size_bytes, 100);
     }
 }
