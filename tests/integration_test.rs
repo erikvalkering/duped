@@ -260,4 +260,89 @@ mod tests {
         assert_eq!(groups[0].size_bytes, 1000);
         assert_eq!(groups[0].file_count(), 2);
     }
+
+    #[test]
+    fn test_size_only_strategy() {
+        // Create a temporary directory with files of various sizes
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Group 1: 3 files of 100 bytes (different contents, but same size)
+        for i in 1..=3 {
+            let mut f = fs::File::create(root_path.join(format!("file100_{}.txt", i)))
+                .expect("Failed to create file");
+            f.write_all(format!("content{}", i).as_bytes())
+                .expect("Failed to write");
+            // Pad to 100 bytes
+            f.write_all(&vec![b' '; 100 - format!("content{}", i).len()])
+                .expect("Failed to write");
+        }
+
+        // Group 2: 2 files of 200 bytes
+        for i in 1..=2 {
+            let mut f = fs::File::create(root_path.join(format!("file200_{}.txt", i)))
+                .expect("Failed to create file");
+            f.write_all(&vec![b'x'; 200]).expect("Failed to write");
+        }
+
+        // Unique file: 50 bytes
+        let mut f = fs::File::create(root_path.join("unique.txt"))
+            .expect("Failed to create unique");
+        f.write_all(&vec![b'y'; 50]).expect("Failed to write");
+
+        // Scan files
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 6);
+
+        // Find groups by size only (no content comparison)
+        let dedupe = SizeOnlyStrategy;
+        let groups = dedupe
+            .find_duplicates(files, None)
+            .expect("Failed to find duplicates");
+
+        // Should find 2 groups: one with 3 files (100 bytes) and one with 2 files (200 bytes)
+        assert_eq!(groups.len(), 2);
+
+        // Verify group sizes
+        let mut file_counts: Vec<_> = groups.iter().map(|g| g.file_count()).collect();
+        file_counts.sort();
+        assert_eq!(file_counts, vec![2, 3]);
+    }
+
+    #[test]
+    fn test_size_only_with_min_size_filter() {
+        let root = tempfile::tempdir().expect("Failed to create temp dir");
+        let root_path = root.path();
+
+        // Small duplicates: 10 bytes each
+        for i in 1..=2 {
+            let mut f = fs::File::create(root_path.join(format!("small_{}.txt", i)))
+                .expect("Failed to create small");
+            f.write_all(b"small12345").expect("Failed to write");
+        }
+
+        // Large duplicates: 500 bytes each
+        for i in 1..=2 {
+            let mut f = fs::File::create(root_path.join(format!("large_{}.txt", i)))
+                .expect("Failed to create large");
+            f.write_all(&vec![b'x'; 500]).expect("Failed to write");
+        }
+
+        // Scan files
+        let scanner = JwalkStrategy;
+        let files: Vec<_> = scanner.scan(root_path).collect();
+        assert_eq!(files.len(), 4);
+
+        // Find groups with min_size = 100 (should skip small files)
+        let dedupe = SizeOnlyStrategy;
+        let groups = dedupe
+            .find_duplicates(files, Some(100))
+            .expect("Failed to find duplicates");
+
+        // Should only find 1 group (the 500-byte files)
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].size_bytes, 500);
+        assert_eq!(groups[0].file_count(), 2);
+    }
 }

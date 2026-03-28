@@ -45,7 +45,9 @@ enum Strategy {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum DedupeStrategy {
-    /// Compare full file contents
+    /// Group by size only (fast, no content comparison)
+    SizeOnly,
+    /// Compare full file contents (accurate, slower)
     FullContent,
 }
 
@@ -79,6 +81,7 @@ fn find_duplicates(cli: &Cli) -> std::io::Result<()> {
     };
 
     let dedupe_strategy: Box<dyn DeduplicateStrategy> = match cli.dedupe {
+        DedupeStrategy::SizeOnly => Box::new(SizeOnlyStrategy),
         DedupeStrategy::FullContent => Box::new(FullContentStrategy),
     };
 

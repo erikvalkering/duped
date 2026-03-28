@@ -231,3 +231,50 @@ impl DeduplicateStrategy for FullContentStrategy {
         Ok(duplicate_groups)
     }
 }
+
+/// Fast strategy: only groups files by size (no content comparison).
+/// Useful as a pre-filter to quickly identify potential duplicates.
+/// Note: files with the same size are NOT necessarily duplicates.
+pub struct SizeOnlyStrategy;
+
+impl DeduplicateStrategy for SizeOnlyStrategy {
+    fn name(&self) -> &'static str {
+        "size-only"
+    }
+
+    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
+        // Single pass: get file sizes and group by size
+        let mut size_to_paths: HashMap<u64, Vec<PathBuf>> = HashMap::new();
+
+        for path in files {
+            match fs::metadata(&path) {
+                Ok(metadata) => {
+                    let size = metadata.len();
+                    // Early filter: skip files below minimum size
+                    if let Some(min) = min_size {
+                        if size < min {
+                            continue;
+                        }
+                    }
+                    size_to_paths
+                        .entry(size)
+                        .or_insert_with(Vec::new)
+                        .push(path);
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+
+        // Filter to only groups with 2+ files and convert to DuplicateGroup
+        let duplicate_groups: Vec<DuplicateGroup> = size_to_paths
+            .into_iter()
+            .filter(|(_, paths)| paths.len() >= 2)
+            .map(|(size, paths)| DuplicateGroup::new(paths, size))
+            .collect();
+
+        Ok(duplicate_groups)
+    }
+}
