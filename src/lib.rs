@@ -160,7 +160,7 @@ impl DuplicateGroup {
 pub trait DeduplicateStrategy {
     fn name(&self) -> &'static str;
 
-    /// Takes a set of file paths and returns groups of duplicates.
+    /// Takes a vector of file paths and returns groups of duplicates.
     /// Only returns groups with 2+ files (excludes unique files).
     fn find_duplicates(&self, files: Vec<PathBuf>) -> std::io::Result<Vec<DuplicateGroup>>;
 }

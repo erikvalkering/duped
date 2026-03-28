@@ -88,14 +88,14 @@ fn find_duplicates(cli: &Cli) -> std::io::Result<()> {
         eprintln!("🔍 Dedupe strategy: {:?}", cli.dedupe);
     }
 
-    // Scan files
+    // Collect files from the scanner - we need this due to iterator lifetime constraints
     let files: Vec<_> = strategy.scan(&cli.path).collect();
-    if !cli.silent {
-        eprintln!("Found {} files", files.len());
-    }
-
-    // Find duplicates
     let duplicate_groups = dedupe_strategy.find_duplicates(files)?;
+
+    if !cli.silent && !duplicate_groups.is_empty() {
+        let total_files: usize = duplicate_groups.iter().map(|g| g.file_count()).sum();
+        eprintln!("Found {} files in {} duplicate groups", total_files, duplicate_groups.len());
+    }
 
     // Apply size filter
     let filtered_groups: Vec<_> = duplicate_groups
