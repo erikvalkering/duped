@@ -23,8 +23,3 @@ serde_json = "1"
 name = "dir_scanning"
 harness = false
 
-[workspace]
-members = [
-    ".",
-    "crates/duped-android",
-]

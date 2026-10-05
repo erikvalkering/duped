@@ -22,6 +22,7 @@ jobs:
         run: cargo install cargo-apk2
 
       - name: Build APK
+        working-directory: duped-android
         run: cargo apk2 build --release -p duped-android
 
       - name: Prepare keystore
@@ -33,7 +34,7 @@ jobs:
         uses: r0adkll/sign-android-release@v1
         id: sign_app
         with:
-          releaseDirectory: target/release/apk
+          releaseDirectory: duped-android/target/release/apk
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
