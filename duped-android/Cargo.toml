@@ -15,3 +15,9 @@ package = "com.example.duped"
 label = "Duped"
 min_sdk_version = 26
 target_sdk_version = 34
+
+[package.metadata.android.signing.release]
+path = "../signing/duped-release.keystore"  # path relative to this Cargo.toml
+keystore_password = { env = "SIGNING_STORE_PASSWORD" }
+key_password = { env = "SIGNING_KEY_PASSWORD" }
+key_alias = { env = "SIGNING_KEY_ALIAS" }
