@@ -1,4 +1,4 @@
-name: Build and Release Android APK
+name: Build Android Release APK
 
 on:
   push:
@@ -21,26 +21,26 @@ jobs:
       - name: Install cargo-apk2
         run: cargo install cargo-apk2
 
-      - name: Build APK
-        working-directory: duped-android
-        run: cargo apk2 build --release -p duped-android
-
       - name: Prepare keystore
         run: |
           mkdir -p signing
           echo "${{ secrets.SIGNING_KEY }}" | base64 -d > signing/duped-release.keystore
 
-      - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: duped-android/target/release/apk
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: "34.0.0"
+      - name: Patch Cargo.toml with signing config
+        working-directory: duped-android
+        run: |
+          cat >> Cargo.toml << 'EOF'
+
+          [package.metadata.android.signing.release]
+          path = "../signing/duped-release.keystore"
+          keystore_password = "${{ secrets.SIGNING_STORE_PASSWORD }}"
+          key_password = "${{ secrets.SIGNING_KEY_PASSWORD }}"
+          key_alias = "${{ secrets.SIGNING_KEY_ALIAS }}"
+          EOF
+
+      - name: Build release APK
+        working-directory: duped-android
+        run: cargo apk2 build --release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -49,4 +49,4 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          files: duped-android/target/release/apk/*.apk
