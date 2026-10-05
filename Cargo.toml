@@ -11,6 +11,7 @@ clap = { version = "4", features = ["derive"] }
 jwalk = "0.8.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+slint = { version = "1.9", default-features = false, features = ["compat-1-2"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -21,3 +22,9 @@ serde_json = "1"
 [[bench]]
 name = "dir_scanning"
 harness = false
+
+[workspace]
+members = [
+    ".",
+    "crates/duped-android",
+]

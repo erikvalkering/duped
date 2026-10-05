@@ -1,0 +1,17 @@
+[package]
+name = "duped-android"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+slint = { version = "1.9", features = ["backend-android-activity-06"] }
+duped = { path = "../.." }  # only if you want to reuse duped logic; otherwise omit
+
+[package.metadata.android]
+package = "com.example.duped"
+label = "Duped"
+min_sdk_version = 26
+target_sdk_version = 34
