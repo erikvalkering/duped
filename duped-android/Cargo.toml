@@ -8,10 +8,25 @@ crate-type = ["cdylib"]
 
 [dependencies]
 slint = { version = "1.9", features = ["backend-android-activity-06"] }
-duped = { path = ".." }  # only if you want to reuse duped logic; otherwise omit
+duped = { path = ".." }
 
 [package.metadata.android]
 package = "com.example.duped"
 label = "Duped"
 min_sdk_version = 26
 target_sdk_version = 34
+
+# Application-level metadata (optional but fine)
+[package.metadata.android.application]
+label = "Duped"
+
+# Declare the main activity
+[[package.metadata.android.application.activity]]
+name = "MainActivity"
+label = "Duped"
+exported = true
+
+# Add MAIN + LAUNCHER intent filter
+[[package.metadata.android.application.activity.intent_filter]]
+actions = ["android.intent.action.MAIN"]
+categories = ["android.intent.category.LAUNCHER"]
