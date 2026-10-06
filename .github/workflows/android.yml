@@ -6,14 +6,15 @@ on:
       - "v*"
 
 permissions:
-  contents: write # needed to create releases and upload assets
+  contents: write
 
 jobs:
   build:
+    name: Build, sign, and publish APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Install Rust
@@ -22,34 +23,100 @@ jobs:
           targets: aarch64-linux-android
 
       - name: Install cargo-apk2
-        run: cargo install cargo-apk2
+        run: cargo install cargo-apk2 --locked
 
-      - name: Prepare keystore
+      - name: Restore signing keystore
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
+          set -euo pipefail
           mkdir -p signing
-          echo "${{ secrets.SIGNING_KEY }}" | base64 -d > signing/duped-release.keystore
+          printf '%s' "$SIGNING_KEY" | base64 --decode > signing/duped-release.keystore
+          test -s signing/duped-release.keystore
 
-      - name: Patch Cargo.toml with signing config
+      - name: Inject release signing configuration
         working-directory: duped-android
+        shell: bash
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         run: |
-          cat >> Cargo.toml << 'EOF'
+          set -euo pipefail
+
+          cat >> Cargo.toml <<EOF
 
           [package.metadata.android.signing.release]
           path = "../signing/duped-release.keystore"
-          keystore_password = "${{ secrets.SIGNING_STORE_PASSWORD }}"
-          key_password = "${{ secrets.SIGNING_KEY_PASSWORD }}"
-          key_alias = "${{ secrets.SIGNING_KEY_ALIAS }}"
+          keystore_password = "${SIGNING_STORE_PASSWORD}"
+          key_password = "${SIGNING_KEY_PASSWORD}"
+          key_alias = "${SIGNING_KEY_ALIAS}"
           EOF
 
-      - name: Build release APK
+      - name: Build signed release APK
         working-directory: duped-android
-        run: cargo apk2 build --release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo apk2 build --release
 
-      - name: Create GitHub Release
+      - name: Select and verify final APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          apk_dir="duped-android/target/release/apk"
+
+          echo "APK files produced by cargo-apk2:"
+          find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -printf '%f
+'
+
+          mapfile -t apks < <(
+            find "$apk_dir" -maxdepth 1 -type f -name '*.apk' \
+              ! -name '*unaligned*.apk' \
+              -print
+          )
+
+          if [ "${#apks[@]}" -ne 1 ]; then
+            echo "Expected exactly one final APK after excluding unaligned artifacts."
+            printf 'Found:
+%s
+' "${apks[@]:-<none>}"
+            exit 1
+          fi
+
+          cp "${apks[0]}" duped.apk
+          test -s duped.apk
+
+          build_tools_version="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          apksigner="$ANDROID_HOME/build-tools/$build_tools_version/apksigner"
+
+          "$apksigner" verify --verbose --print-certs duped.apk
+
+      - name: Show APK metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          build_tools_version="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          apkanalyzer="$ANDROID_HOME/build-tools/$build_tools_version/apkanalyzer"
+
+          echo "Package ID:"
+          "$apkanalyzer" manifest application-id duped.apk
+
+          echo "Version code:"
+          "$apkanalyzer" manifest version-code duped.apk
+
+          echo "Version name:"
+          "$apkanalyzer" manifest version-name duped.apk
+
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          name: Duped ${{ github.ref_name }}
           draft: false
           prerelease: false
-          files: duped-android/target/release/apk/duped-android.apk
+          generate_release_notes: true
+          files: duped.apk
