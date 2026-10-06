@@ -25,7 +25,7 @@ slint::slint! {
 }
 
 #[cfg(target_os = "android")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn android_main(app: slint::platform::android::AndroidApp) {
     use slint::platform::android::AndroidPlatform;
 
