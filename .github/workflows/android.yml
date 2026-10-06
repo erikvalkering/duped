@@ -52,4 +52,4 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          files: duped-android/target/release/apk/*.apk
+          files: duped-android/target/release/apk/duped-android.apk
