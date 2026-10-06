@@ -102,23 +102,6 @@ jobs:
 
           "$APKSIGNER" verify --verbose --print-certs duped.apk
 
-      - name: Show APK metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          BUILD_TOOLS_VERSION="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
-          APKANALYZER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apkanalyzer"
-
-          echo "Package ID:"
-          "$APKANALYZER" manifest application-id duped.apk
-
-          echo "Version code:"
-          "$APKANALYZER" manifest version-code duped.apk
-
-          echo "Version name:"
-          "$APKANALYZER" manifest version-name duped.apk
-
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
