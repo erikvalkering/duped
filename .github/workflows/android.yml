@@ -44,7 +44,6 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         run: |
           set -euo pipefail
-
           cat >> Cargo.toml <<EOF
 
           [package.metadata.android.signing.release]
@@ -66,50 +65,43 @@ jobs:
         run: |
           set -euo pipefail
 
-          apk_dir="duped-android/target/release/apk"
+          APK_DIR="duped-android/target/release/apk"
 
-          echo "APK files produced by cargo-apk2:"
-          find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -printf '%f
-'
+          echo "APK files produced:"
+          find "$APK_DIR" -maxdepth 1 -type f -name "*.apk"
 
-          mapfile -t apks < <(
-            find "$apk_dir" -maxdepth 1 -type f -name '*.apk' \
-              ! -name '*unaligned*.apk' \
-              -print
-          )
+          FINAL_APK="$(find "$APK_DIR" -maxdepth 1 -type f -name "*.apk" ! -name "*unaligned*.apk" | head -n 1)"
 
-          if [ "${#apks[@]}" -ne 1 ]; then
-            echo "Expected exactly one final APK after excluding unaligned artifacts."
-            printf 'Found:
-%s
-' "${apks[@]:-<none>}"
+          if [ -z "$FINAL_APK" ]; then
+            echo "No final APK was found."
             exit 1
           fi
 
-          cp "${apks[0]}" duped.apk
+          echo "Using final APK: $FINAL_APK"
+          cp "$FINAL_APK" duped.apk
           test -s duped.apk
 
-          build_tools_version="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
-          apksigner="$ANDROID_HOME/build-tools/$build_tools_version/apksigner"
+          BUILD_TOOLS_VERSION="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
 
-          "$apksigner" verify --verbose --print-certs duped.apk
+          "$APKSIGNER" verify --verbose --print-certs duped.apk
 
       - name: Show APK metadata
         shell: bash
         run: |
           set -euo pipefail
 
-          build_tools_version="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
-          apkanalyzer="$ANDROID_HOME/build-tools/$build_tools_version/apkanalyzer"
+          BUILD_TOOLS_VERSION="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          APKANALYZER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apkanalyzer"
 
           echo "Package ID:"
-          "$apkanalyzer" manifest application-id duped.apk
+          "$APKANALYZER" manifest application-id duped.apk
 
           echo "Version code:"
-          "$apkanalyzer" manifest version-code duped.apk
+          "$APKANALYZER" manifest version-code duped.apk
 
           echo "Version name:"
-          "$apkanalyzer" manifest version-name duped.apk
+          "$APKANALYZER" manifest version-name duped.apk
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
