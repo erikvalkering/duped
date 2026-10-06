@@ -25,9 +25,12 @@ slint::slint! {
 }
 
 #[cfg(target_os = "android")]
-#[unsafe(no_mangle)]
-fn android_main(app: slint::android::AndroidApp) {
-    slint::android::init(app).expect("Failed to init Slint Android backend");
-    let ui = HelloWorld::new().expect("Failed to create main window");
-    ui.run().expect("Failed to run Slint event loop");
+#[no_mangle]
+pub fn android_main(app: slint::platform::android::AndroidApp) {
+    use slint::platform::android::AndroidPlatform;
+
+    AndroidPlatform::new_with_app(app).run_app(|| {
+        let ui = HelloWorld::new().expect("Failed to create MainWindow");
+        ui.run().expect("Failed to run app");
+    });
 }

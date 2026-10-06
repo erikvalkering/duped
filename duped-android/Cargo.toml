@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 slint = { version = "1.9", features = ["backend-android-activity-06"] }
-duped = { path = ".." }
+# duped = { path = ".." }
 
 [package.metadata.android]
 package = "com.example.duped"
