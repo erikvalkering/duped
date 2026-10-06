@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build, sign, and publish APK
+    name: Build, sign, verify, and publish APK
     runs-on: ubuntu-latest
 
     steps:
@@ -67,15 +67,32 @@ jobs:
 
           APK_DIR="duped-android/target/release/apk"
 
-          echo "APK files produced:"
-          find "$APK_DIR" -maxdepth 1 -type f -name "*.apk"
+          echo "All APK files produced:"
+          find "$APK_DIR" -maxdepth 1 -type f -name "*.apk" -print
 
-          FINAL_APK="$(find "$APK_DIR" -maxdepth 1 -type f -name "*.apk" ! -name "*unaligned*.apk" | head -n 1)"
+          mapfile -d '' -t CANDIDATES < <(
+            find "$APK_DIR" \
+              -maxdepth 1 \
+              -type f \
+              -name "*.apk" \
+              ! -name "*unaligned*.apk" \
+              -print0
+          )
 
-          if [ -z "$FINAL_APK" ]; then
-            echo "No final APK was found."
+          CANDIDATE_COUNT="${#CANDIDATES[@]}"
+
+          echo "Final APK candidate count: $CANDIDATE_COUNT"
+          echo "Final APK candidates:"
+          printf '%s
+' "${CANDIDATES[@]}"
+
+          if [ "$CANDIDATE_COUNT" -ne 1 ]; then
+            echo "Expected exactly one signed/aligned APK candidate."
+            echo "Refusing to choose an APK automatically."
             exit 1
           fi
+
+          FINAL_APK="${CANDIDATES[0]}"
 
           echo "Using final APK: $FINAL_APK"
           cp "$FINAL_APK" duped.apk
