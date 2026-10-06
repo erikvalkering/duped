@@ -83,8 +83,7 @@ jobs:
 
           echo "Final APK candidate count: $CANDIDATE_COUNT"
           echo "Final APK candidates:"
-          printf '%s
-' "${CANDIDATES[@]}"
+          printf '%s\n' "${CANDIDATES[@]}"
 
           if [ "$CANDIDATE_COUNT" -ne 1 ]; then
             echo "Expected exactly one signed/aligned APK candidate."
