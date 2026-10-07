@@ -102,6 +102,20 @@ jobs:
 
           "$APKSIGNER" verify --verbose --print-certs duped.apk
 
+      - name: Inspect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUILD_TOOLS_VERSION="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          AAPT="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/aapt"
+
+          echo "APK contents:"
+          unzip -l "$FINAL_APK" | grep -E 'AndroidManifest.xml|lib/.+.so' || true
+
+          echo "Decoded manifest:"
+          "$AAPT" dump badging "$FINAL_APK"
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
