@@ -22,7 +22,7 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Install cargo-apk
+      - name: Install cargo-apk2
         run: cargo install cargo-apk2
 
       - name: Restore signing keystore
