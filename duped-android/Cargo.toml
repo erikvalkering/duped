@@ -7,10 +7,10 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-android_logger.workspace = true
-eframe.workspace = true
-log.workspace = true
-winit = {workspace = true, features = ["android-native-activity"]}
+winit = "0.31.0-beta.3"
+android_logger = "0.15.1"
+eframe = "0.35.0"
+log = "0.4.34"
 
 [package.metadata.android.sdk]
 min_sdk_version = 29
