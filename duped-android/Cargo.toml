@@ -29,22 +29,25 @@ thiserror = "2.0.21"
 toml = "1.1.6"
 which = "8.0.6"
 
+[package.metadata.android]
+package = "com.example.duped"
+build_targets = ["aarch64-linux-android"]
+
 [package.metadata.android.sdk]
 min_sdk_version = 29
-target_sdk_version = 37
+target_sdk_version = 35
 
-# This needs to be turned on for cargo apk2.
 [package.metadata.android.application]
-# needed
 has_code = false
 
 [[package.metadata.android.application.activity]]
 name = "android.app.NativeActivity"
+exported = true
 
 [[package.metadata.android.application.activity.meta_data]]
 name = "android.app.lib_name"
+value = "duped_android"
 
 [[package.metadata.android.application.activity.intent_filter]]
-actions = ["android.intent.action.VIEW", "android.intent.action.MAIN"]
+actions = ["android.intent.action.MAIN"]
 categories = ["android.intent.category.LAUNCHER"]
-

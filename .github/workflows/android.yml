@@ -28,20 +28,23 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Install Android SDK components
-        uses: android-actions/setup-android@v3
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
 
-      - name: Install Android platform and build tools
+      - name: Show Android SDK configuration
         shell: bash
         run: |
           set -euo pipefail
 
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-${ANDROID_API_LEVEL}" \
-            "build-tools;${ANDROID_BUILD_TOOLS}"
-
-          yes | sdkmanager --licenses >/dev/null || true
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
+          sdkmanager --version
+          adb version
 
       - name: Install cargo-apk2
         shell: bash
@@ -75,7 +78,7 @@ jobs:
             -keystore signing/duped-release.keystore \
             -storepass "$SIGNING_STORE_PASSWORD"
 
-      - name: Configure Android package metadata
+      - name: Inject Android application metadata
         working-directory: duped-android
         shell: bash
         run: |
@@ -107,7 +110,7 @@ jobs:
           categories = ["android.intent.category.LAUNCHER"]
           EOF
 
-      - name: Configure release signing
+      - name: Inject release signing configuration
         working-directory: duped-android
         shell: bash
         env:
@@ -126,12 +129,15 @@ jobs:
           key_alias = "${SIGNING_KEY_ALIAS}"
           EOF
 
-      - name: Show final Cargo.toml
+      - name: Display effective Android metadata
         working-directory: duped-android
         shell: bash
         run: |
           set -euo pipefail
-          cat Cargo.toml
+
+          grep -n -A80 \
+            'package.metadata.android' \
+            Cargo.toml
 
       - name: Build signed release APK
         working-directory: duped-android
@@ -167,17 +173,16 @@ jobs:
 
           if [ "${#CANDIDATES[@]}" -ne 1 ]; then
             echo "Expected exactly one final APK."
-            echo "Found: ${#CANDIDATES[@]}"
+            echo "Found ${#CANDIDATES[@]} candidates:"
             printf '%s\n' "${CANDIDATES[@]}"
             exit 1
           fi
 
           FINAL_APK="${CANDIDATES[0]}"
 
-          echo "Final APK: ${FINAL_APK}"
+          echo "Selected APK: ${FINAL_APK}"
 
           cp "${FINAL_APK}" duped.apk
-
           test -s duped.apk
 
           echo "path=duped.apk" >> "$GITHUB_OUTPUT"
@@ -187,26 +192,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "APK contents:"
           unzip -l "${{ steps.apk.outputs.path }}" \
-            | grep -E 'AndroidManifest.xml|lib/.+.so' \
+            | grep -E \
+              'AndroidManifest.xml|lib/.+.so' \
             || true
 
-      - name: Inspect APK manifest
+      - name: Inspect APK metadata
         shell: bash
         run: |
           set -euo pipefail
 
-          BUILD_TOOLS="${ANDROID_HOME}/build-tools/${ANDROID_BUILD_TOOLS}"
-          AAPT="${BUILD_TOOLS}/aapt"
+          AAPT="${ANDROID_HOME}/build-tools/${ANDROID_BUILD_TOOLS}/aapt"
 
           test -x "${AAPT}"
 
           echo "APK badging:"
-          "${AAPT}" dump badging "${{ steps.apk.outputs.path }}"
+          "${AAPT}" dump badging duped.apk
 
           echo "APK permissions:"
-          "${AAPT}" dump permissions "${{ steps.apk.outputs.path }}"
+          "${AAPT}" dump permissions duped.apk
 
       - name: Verify APK signature
         shell: bash
@@ -220,16 +224,15 @@ jobs:
           "${APKSIGNER}" verify \
             --verbose \
             --print-certs \
-            "${{ steps.apk.outputs.path }}"
+            duped.apk
 
       - name: Calculate APK checksum
         shell: bash
         run: |
           set -euo pipefail
+          sha256sum duped.apk
 
-          sha256sum "${{ steps.apk.outputs.path }}"
-
-      - name: Upload APK as workflow artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: duped-android-release
