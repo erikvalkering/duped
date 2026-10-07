@@ -22,8 +22,8 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Install cargo-apk2
-        run: cargo install cargo-apk2 --locked
+      - name: Install cargo-apk
+        run: cargo install cargo-apk
 
       - name: Restore signing keystore
         shell: bash
@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo apk2 build --release
+          cargo apk run --target aarch64-linux-android
 
       - name: Select and verify final APK
         shell: bash

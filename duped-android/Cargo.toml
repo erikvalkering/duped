@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-slint = { version = "1.9", features = ["backend-android-activity-06"] }
+slint = { version = "1.6", features = ["backend-android-activity-06"] }
 # duped = { path = ".." }
 
 [package.metadata.android]
