@@ -1,12 +1,37 @@
-#[unsafe(no_mangle)]
-fn android_main(app: slint::android::AndroidApp) {
-    slint::android::init(app).unwrap();
+#![cfg(target_os = "android")]
 
-    // ... rest of your code ...
-    slint::slint! {
-        export component MainWindow inherits Window {
-            Text { text: "Hello World"; }
-        }
+use {
+    android_logger::{Config, init_once},
+    eframe::{
+        App, Frame, NativeOptions,
+        egui::{CentralPanel, Ui},
+        run_native,
+    },
+    log::LevelFilter,
+    winit::platform::android::activity::AndroidApp,
+};
+
+pub struct MyApp;
+
+impl App for MyApp {
+    fn ui(&mut self, ui: &mut Ui, _frame: &mut Frame) {
+        CentralPanel::default().show(ui, |ui| {
+            ui.heading("My egui Android App");
+            ui.label("Hello world!");
+        });
     }
-    MainWindow::new().unwrap().run().unwrap();
+}
+
+//noinspection SpellCheckingInspection
+#[unsafe(no_mangle)]
+fn android_main(app: AndroidApp) {
+    // Initialize the logger so you can see output in `adb logcat`
+    init_once(Config::default().with_max_level(LevelFilter::Info));
+
+    let options = NativeOptions {
+        android_app: Some(app),
+        ..Default::default()
+    };
+
+    run_native("My egui App", options, Box::new(|_cc| Ok(Box::new(MyApp)))).unwrap();
 }
