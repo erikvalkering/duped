@@ -203,4 +203,45 @@ jobs:
           test -x "${AAPT}"
 
           echo "APK badging:"
-          "${AAPT}" dump badging "${{ s
+          "${AAPT}" dump badging "${{ steps.apk.outputs.path }}"
+
+          echo "APK permissions:"
+          "${AAPT}" dump permissions "${{ steps.apk.outputs.path }}"
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APKSIGNER="${ANDROID_HOME}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
+
+          test -x "${APKSIGNER}"
+
+          "${APKSIGNER}" verify \
+            --verbose \
+            --print-certs \
+            "${{ steps.apk.outputs.path }}"
+
+      - name: Calculate APK checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sha256sum "${{ steps.apk.outputs.path }}"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: duped-android-release
+          path: duped.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Duped ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: duped.apk
