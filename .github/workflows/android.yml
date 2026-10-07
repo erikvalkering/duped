@@ -78,38 +78,6 @@ jobs:
             -keystore signing/duped-release.keystore \
             -storepass "$SIGNING_STORE_PASSWORD"
 
-      - name: Inject Android application metadata
-        working-directory: duped-android
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          cat >> Cargo.toml <<'EOF'
-
-          [package.metadata.android]
-          package = "com.example.duped"
-          build_targets = ["aarch64-linux-android"]
-
-          [package.metadata.android.sdk]
-          min_sdk_version = 29
-          target_sdk_version = 35
-
-          [package.metadata.android.application]
-          has_code = false
-
-          [[package.metadata.android.application.activity]]
-          name = "android.app.NativeActivity"
-          exported = true
-
-          [[package.metadata.android.application.activity.meta_data]]
-          name = "android.app.lib_name"
-          value = "duped_android"
-
-          [[package.metadata.android.application.activity.intent_filter]]
-          actions = ["android.intent.action.MAIN"]
-          categories = ["android.intent.category.LAUNCHER"]
-          EOF
-
       - name: Inject release signing configuration
         working-directory: duped-android
         shell: bash
