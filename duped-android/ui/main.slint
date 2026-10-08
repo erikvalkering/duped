@@ -1,8 +1,16 @@
 import { FilledButton, ElevatedCard } from "@material";
+import { AppBar } from "@material";
+
 export { MaterialWindowAdapter } from "@material";
 
 export component MainWindow inherits Window {
     property <int> count: 0;
+
+    AppBar {
+        title: "My App";
+        width: parent.width;
+        height: parent.height;
+    }
 
     ElevatedCard {
         width: 90%;
@@ -16,3 +24,4 @@ export component MainWindow inherits Window {
         }
     }
 }
+
