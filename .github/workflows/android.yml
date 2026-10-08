@@ -33,8 +33,8 @@ jobs:
         with:
           packages: >-
             platform-tools
-            platforms;android-${ANDROID_API_LEVEL}
-            build-tools;${ANDROID_BUILD_TOOLS}
+            platforms;android-${{ env.ANDROID_API_LEVEL }}
+            build-tools;${{ env.ANDROID_BUILD_TOOLS }}
 
       - name: Show Android SDK configuration
         shell: bash
