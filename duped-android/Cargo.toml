@@ -12,23 +12,6 @@ android_logger = "0.15.1"
 eframe = "0.35.0"
 log = "0.4.34"
 
-android-build = { version = "0.1.4", default-features = false }
-anyhow = "1.0.104"
-cargo-subcommand = "0.12.0"
-clap = "4.6.7"
-dirs = "6.0.0"
-dunce = "1.0.5"
-env_logger = "0.11.11"
-jni = "0.22.4"
-libc = "1.0.0-alpha.4"
-ndk = "0.9.0"
-ndk-context = "0.1.1"
-quick-xml = "0.41.0"
-serde = "1.0.229"
-thiserror = "2.0.21"
-toml = "1.1.6"
-which = "8.0.6"
-
 [package.metadata.android]
 package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
