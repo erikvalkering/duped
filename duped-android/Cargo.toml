@@ -15,6 +15,7 @@ log = "0.4.34"
 [package.metadata.android]
 package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
+resources = "res"
 
 [package.metadata.android.sdk]
 min_sdk_version = 29
@@ -24,8 +25,6 @@ target_sdk_version = 35
 has_code = false
 label = "Duped"
 icon = "@mipmap/ic_launcher"
-res = "res"
-
 
 [[package.metadata.android.application.activity]]
 name = "android.app.NativeActivity"
