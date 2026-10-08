@@ -14,6 +14,7 @@ log = "0.4.34"
 
 [package.metadata.android]
 package = "com.example.duped"
+label = "Duped"
 build_targets = ["aarch64-linux-android"]
 
 [package.metadata.android.sdk]
