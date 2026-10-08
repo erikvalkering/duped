@@ -1,16 +1,13 @@
 [package]
 name = "duped-android"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-winit = { version = "0.31.0-beta.3", features = ["android-native-activity"]}
-android_logger = "0.15.1"
-eframe = "0.35.0"
-log = "0.4.34"
+slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 
 [package.metadata.android]
 package = "com.example.duped"
