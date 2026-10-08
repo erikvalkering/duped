@@ -12,7 +12,6 @@ export component MainWindow inherits MaterialWindow {
     property <length> drawer-width: 320px;
 
     title: "Duped";
-    fullscreen: true;
 
     // Full-window content. The app bar stays above the main area.
     Rectangle {
@@ -20,7 +19,7 @@ export component MainWindow inherits MaterialWindow {
         height: parent.height;
         background: transparent;
 
-        AppBar {
+        app-bar := AppBar {
             width: parent.width;
             title: "Duped";
             show-background: true;
@@ -131,10 +130,6 @@ export component MainWindow inherits MaterialWindow {
                             root.drawer-open = false;
                         }
                     }
-                }
-
-                Divider {
-                    width: parent.width;
                 }
 
                 Text {
