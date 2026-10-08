@@ -29,7 +29,7 @@ exported = true
 
 [[package.metadata.android.application.activity.meta_data]]
 name = "android.app.lib_name"
-value = "Duped"
+value = "duped_android"
 
 [[package.metadata.android.application.activity.intent_filter]]
 actions = ["android.intent.action.MAIN"]
