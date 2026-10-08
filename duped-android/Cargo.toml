@@ -23,6 +23,9 @@ target_sdk_version = 35
 [package.metadata.android.application]
 has_code = false
 label = "Duped"
+icon = "@mipmap/ic_launcher"
+res = "res"
+
 
 [[package.metadata.android.application.activity]]
 name = "android.app.NativeActivity"
