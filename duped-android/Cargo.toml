@@ -9,6 +9,9 @@ crate-type = ["cdylib"]
 [dependencies]
 slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 
+[build-dependencies]
+slint-build = { version = "1.18" }
+
 [package.metadata.android]
 package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
