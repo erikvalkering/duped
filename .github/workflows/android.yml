@@ -26,15 +26,15 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: ${RUST_TARGET}
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: >-
             platform-tools
-            platforms;android-35
-            build-tools;35.0.0
+            platforms;android-${ANDROID_API_LEVEL}
+            build-tools;${ANDROID_BUILD_TOOLS}
 
       - name: Show Android SDK configuration
         shell: bash
