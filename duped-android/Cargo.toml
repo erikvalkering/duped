@@ -14,7 +14,6 @@ log = "0.4.34"
 
 [package.metadata.android]
 package = "com.example.duped"
-label = "Duped"
 build_targets = ["aarch64-linux-android"]
 
 [package.metadata.android.sdk]
@@ -23,6 +22,7 @@ target_sdk_version = 35
 
 [package.metadata.android.application]
 has_code = false
+label = "Duped"
 
 [[package.metadata.android.application.activity]]
 name = "android.app.NativeActivity"
