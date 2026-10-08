@@ -1,26 +1,165 @@
-import { FilledButton, ElevatedCard } from "@material";
-import { AppBar } from "@material";
+import {
+    MaterialWindow,
+    AppBar,
+    FilledButton,
+    IconButton,
+    Divider,
+} from "@material";
 
-export { MaterialWindowAdapter } from "@material";
+export component MainWindow inherits MaterialWindow {
+    in-out property <int> count: 0;
+    property <bool> drawer-open: false;
+    property <length> drawer-width: 320px;
 
-export component MainWindow inherits Window {
-    property <int> count: 0;
+    title: "Duped";
+    fullscreen: true;
 
-    width: 100%;
-    height: 100%;
- 
-    AppBar {
-        title: "My App";
+    // Full-window content. The app bar stays above the main area.
+    Rectangle {
         width: parent.width;
         height: parent.height;
-    }
+        background: transparent;
 
-    FilledButton {
-        text: "Count: " + count;
-        icon: @image-url("slint-logo.svg");
-        clicked => {
-            count += 1;
+        AppBar {
+            width: parent.width;
+            title: "Duped";
+            show-background: true;
+
+            leading-button: {
+                icon: @image-url("icons/menu.svg"),
+                tooltip: "Open menu",
+                enabled: true,
+            };
+
+            leading-button-clicked => {
+                root.drawer-open = true;
+            }
+        }
+
+        // Content below the app bar.
+        Rectangle {
+            y: app-bar.height;
+            width: parent.width;
+            height: parent.height - app-bar.height;
+            background: transparent;
+
+            FilledButton {
+                text: "Count: " + root.count;
+                icon: @image-url("slint-logo.svg");
+
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+
+                clicked => {
+                    root.count += 1;
+                }
+            }
+        }
+
+        // Left-edge gesture zone.
+        // A short left-to-right drag opens the drawer.
+        TouchArea {
+            width: 32px;
+            height: parent.height;
+
+            moved => {
+                if (!root.drawer-open && self.pressed && self.mouse-x > 64px) {
+                    root.drawer-open = true;
+                }
+            }
+        }
+
+        // Dark scrim. It also closes the drawer when clicked.
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            visible: root.drawer-open;
+            opacity: root.drawer-open ? 1 : 0;
+
+            animate opacity {
+                duration: 180ms;
+            }
+
+            Rectangle {
+                width: parent.width;
+                height: parent.height;
+                background: #00000080;
+            }
+
+            clicked => {
+                root.drawer-open = false;
+            }
+        }
+
+        // The actual side panel.
+        Rectangle {
+            width: root.drawer-width;
+            height: parent.height;
+            x: root.drawer-open ? 0px : -self.width;
+            background: #fffbff;
+            clip: true;
+
+            animate x {
+                duration: 220ms;
+            }
+
+            VerticalLayout {
+                width: parent.width;
+                height: parent.height;
+                spacing: 0px;
+
+                Rectangle {
+                    height: 64px;
+                    background: #f3edf7;
+
+                    Text {
+                        x: 24px;
+                        y: (parent.height - self.height) / 2;
+                        text: "Duped";
+                        font-size: 22px;
+                        font-weight: 600;
+                        color: #1d192b;
+                    }
+
+                    IconButton {
+                        x: parent.width - self.width - 12px;
+                        y: (parent.height - self.height) / 2;
+                        icon: @image-url("icons/close.svg");
+                        tooltip: "Close menu";
+
+                        clicked => {
+                            root.drawer-open = false;
+                        }
+                    }
+                }
+
+                Divider {
+                    width: parent.width;
+                }
+
+                Text {
+                    text: "Navigation";
+                    x: 24px;
+                    top: 24px;
+                    color: #49454f;
+                    font-size: 14px;
+                }
+
+                Text {
+                    text: "Duplicate finder";
+                    x: 24px;
+                    top: 48px;
+                    color: #1d192b;
+                    font-size: 16px;
+                }
+            }
+
+            // Consume input inside the panel so that it does not activate
+            // the background scrim's click-to-close handler.
+            TouchArea {
+                width: parent.width;
+                height: parent.height;
+            }
         }
     }
 }
-
