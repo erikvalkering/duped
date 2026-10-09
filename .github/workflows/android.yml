@@ -26,7 +26,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${RUST_TARGET}
+          targets: ${{ env.RUST_TARGET }}
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -115,7 +115,7 @@ jobs:
 
           cargo apk2 build \
             --release \
-            --target "${RUST_TARGET}"
+            --target "${{ env.RUST_TARGET }}"
 
       - name: Locate final APK
         id: apk
@@ -124,14 +124,14 @@ jobs:
           set -euo pipefail
 
           echo "APK files produced:"
-          find "${APK_DIR}" \
+          find "${{ env.APK_DIR }}" \
             -maxdepth 1 \
             -type f \
             -name "*.apk" \
             -print
 
           mapfile -d '' -t CANDIDATES < <(
-            find "${APK_DIR}" \
+            find "${{ env.APK_DIR }}" \
               -maxdepth 1 \
               -type f \
               -name "*.apk" \
@@ -170,7 +170,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          AAPT="${ANDROID_HOME}/build-tools/${ANDROID_BUILD_TOOLS}/aapt"
+          AAPT="${ANDROID_HOME}/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/aapt"
 
           test -x "${AAPT}"
 
@@ -185,7 +185,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          APKSIGNER="${ANDROID_HOME}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
+          APKSIGNER="${ANDROID_HOME}/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/apksigner"
 
           test -x "${APKSIGNER}"
 
