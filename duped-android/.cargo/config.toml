@@ -1,0 +1,2 @@
+[alias]
+slint-check = "run --quiet --manifest-path ../tools/slint-check/Cargo.toml --"

@@ -1,0 +1,12 @@
+[package]
+name = "cargo-slint-check"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "cargo-slint-check"
+path = "src/main.rs"
+
+[dependencies]
+slint-interpreter = "=1.18.1"
+spin_on = "0.1"
