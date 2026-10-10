@@ -13,14 +13,17 @@ export component MainWindow inherits MaterialWindow {
     title: "Duped";
     disable-hover: true;
 
-    // Main app shell: app bar at the top, content fills the rest.
-    VerticalLayout {
-        width: parent.width;
-        height: parent.height;
-        spacing: 0px;
+    // Explicitly size the shell to the window; don't use a layout here.
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: transparent;
 
         app-bar := AppBar {
+            x: 0px;
+            y: 0px;
             width: parent.width;
+            // Let AppBar use its intrinsic height.
             title: "Duped";
             show-background: true;
 
@@ -36,6 +39,8 @@ export component MainWindow inherits MaterialWindow {
         }
 
         Rectangle {
+            x: 0px;
+            y: app-bar.height;
             width: parent.width;
             height: parent.height - app-bar.height;
             background: transparent;
@@ -53,7 +58,7 @@ export component MainWindow inherits MaterialWindow {
         }
     }
 
-    // Edge swipe area. Kept outside the shell layout so it overlays it.
+    // Edge swipe area.
     TouchArea {
         width: 32px;
         height: parent.height;
@@ -65,7 +70,7 @@ export component MainWindow inherits MaterialWindow {
         }
     }
 
-    // Scrim overlays the app and closes the drawer when tapped.
+    // Scrim is only present while open.
     if root.drawer-open : TouchArea {
         width: parent.width;
         height: parent.height;
@@ -81,7 +86,7 @@ export component MainWindow inherits MaterialWindow {
         }
     }
 
-    // Drawer overlays the shell. It starts off-screen when closed.
+    // Drawer is an overlay, outside the app shell.
     Rectangle {
         width: root.drawer-width;
         height: parent.height;
@@ -93,58 +98,57 @@ export component MainWindow inherits MaterialWindow {
             duration: 220ms;
         }
 
-        VerticalLayout {
+        Rectangle {
+            x: 0px;
+            y: 0px;
             width: parent.width;
-            height: parent.height;
-            spacing: 0px;
+            height: 64px;
+            background: #f3edf7;
 
-            Rectangle {
-                width: parent.width;
-                height: 64px;
-                background: #f3edf7;
-
-                Text {
-                    x: 24px;
-                    y: (parent.height - self.height) / 2;
-                    text: "Duped";
-                    font-size: 22px;
-                    font-weight: 600;
-                    color: #1d192b;
-                }
-
-                IconButton {
-                    x: parent.width - self.width - 12px;
-                    y: (parent.height - self.height) / 2;
-                    icon: @image-url("icons/close.svg");
-                    tooltip: "Close menu";
-
-                    clicked => {
-                        root.drawer-open = false;
-                    }
-                }
+            Text {
+                x: 24px;
+                y: (parent.height - self.height) / 2;
+                text: "Duped";
+                font-size: 22px;
+                font-weight: 600;
+                color: #1d192b;
             }
 
-            VerticalLayout {
-                width: parent.width;
-                padding-left: 24px;
-                padding-top: 24px;
-                spacing: 16px;
+            IconButton {
+                x: parent.width - self.width - 12px;
+                y: (parent.height - self.height) / 2;
+                icon: @image-url("icons/close.svg");
+                tooltip: "Close menu";
 
-                Text {
-                    text: "Navigation";
-                    color: #49454f;
-                    font-size: 14px;
-                }
-
-                Text {
-                    text: "Duplicate finder";
-                    color: #1d192b;
-                    font-size: 16px;
+                clicked => {
+                    root.drawer-open = false;
                 }
             }
         }
 
-        // Keep drawer taps from reaching the scrim.
+        VerticalLayout {
+            x: 0px;
+            y: 64px;
+            width: parent.width;
+            height: parent.height - 64px;
+            padding-left: 24px;
+            padding-top: 24px;
+            spacing: 16px;
+
+            Text {
+                text: "Navigation";
+                color: #49454f;
+                font-size: 14px;
+            }
+
+            Text {
+                text: "Duplicate finder";
+                color: #1d192b;
+                font-size: 16px;
+            }
+        }
+
+        // Consume touches on the panel.
         TouchArea {
             width: parent.width;
             height: parent.height;
