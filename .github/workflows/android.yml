@@ -59,7 +59,7 @@ jobs:
             sed -i '/^[package.metadata.android]/a version_code = '"$VERSION_CODE" Cargo.toml
           fi
 
-          grep -A4 '^[package.metadata.android]' Cargo.tom
+          grep -A4 '^[package.metadata.android]' Cargo.toml
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
