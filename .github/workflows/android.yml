@@ -47,7 +47,7 @@ jobs:
           VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH + 1))
 
           # Update existing entry
-          sed -i -E "s/^version[[:space:]]*=.*/version = "$VERSION"/" Cargo.toml
+          sed -i -E "s/^version[[:space:]]*=.*/version = \"$VERSION\"/" Cargo.toml
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
