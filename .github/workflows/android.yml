@@ -23,6 +23,44 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Set Android version from tag
+        working-directory: duped-android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
+            echo "Expected a tag like v0.1.2; got ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+
+          # Map semver major.minor.patch to Android's positive integer versionCode.
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          if (( MAJOR > 2097 || MINOR > 999 || PATCH > 999 )); then
+            echo "Version component too large for versionCode mapping"
+            exit 1
+          fi
+
+          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH + 1))
+
+          # Update existing entries, or append them to [package.metadata.android].
+          if grep -q '^version_name[[:space:]]*=' Cargo.toml; then
+            sed -i -E "s/^version_name[[:space:]]*=.*/version_name = "$VERSION"/" Cargo.toml
+          else
+            sed -i '/^[package.metadata.android]/a version_name = "'"$VERSION"'"' Cargo.toml
+          fi
+
+          if grep -q '^version_code[[:space:]]*=' Cargo.toml; then
+            sed -i -E "s/^version_code[[:space:]]*=.*/version_code = $VERSION_CODE/" Cargo.toml
+          else
+            sed -i '/^[package.metadata.android]/a version_code = '"$VERSION_CODE" Cargo.toml
+          fi
+
+          grep -A4 '^[package.metadata.android]' Cargo.tom
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
