@@ -13,11 +13,11 @@ export component MainWindow inherits MaterialWindow {
     title: "Duped";
     disable-hover: true;
 
-    // Full-window content. The app bar stays above the main area.
-    Rectangle {
+    // Main app shell: app bar at the top, content fills the rest.
+    VerticalLayout {
         width: parent.width;
         height: parent.height;
-        background: transparent;
+        spacing: 0px;
 
         app-bar := AppBar {
             width: parent.width;
@@ -35,9 +35,7 @@ export component MainWindow inherits MaterialWindow {
             }
         }
 
-        // Content below the app bar.
         Rectangle {
-            y: app-bar.height;
             width: parent.width;
             height: parent.height - app-bar.height;
             background: transparent;
@@ -45,7 +43,6 @@ export component MainWindow inherits MaterialWindow {
             FilledButton {
                 text: "Count: " + root.count;
                 icon: @image-url("slint-logo.svg");
-
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
 
@@ -54,105 +51,103 @@ export component MainWindow inherits MaterialWindow {
                 }
             }
         }
+    }
 
-        // Left-edge gesture zone.
-        // A short left-to-right drag opens the drawer.
-        TouchArea {
-            width: 32px;
-            height: parent.height;
+    // Edge swipe area. Kept outside the shell layout so it overlays it.
+    TouchArea {
+        width: 32px;
+        height: parent.height;
 
-            moved => {
-                if (!root.drawer-open && self.pressed && self.mouse-x > 64px) {
-                    root.drawer-open = true;
-                }
+        moved => {
+            if (!root.drawer-open && self.pressed && self.mouse-x > 64px) {
+                root.drawer-open = true;
             }
         }
+    }
 
-        // Dark scrim. It also closes the drawer when clicked.
-        TouchArea {
+    // Scrim overlays the app and closes the drawer when tapped.
+    if root.drawer-open : TouchArea {
+        width: parent.width;
+        height: parent.height;
+
+        Rectangle {
             width: parent.width;
             height: parent.height;
-            visible: root.drawer-open;
-            opacity: root.drawer-open ? 1 : 0;
+            background: #00000080;
+        }
 
-            animate opacity {
-                duration: 180ms;
-            }
+        clicked => {
+            root.drawer-open = false;
+        }
+    }
+
+    // Drawer overlays the shell. It starts off-screen when closed.
+    Rectangle {
+        width: root.drawer-width;
+        height: parent.height;
+        x: root.drawer-open ? 0px : -self.width;
+        background: #fffbff;
+        clip: true;
+
+        animate x {
+            duration: 220ms;
+        }
+
+        VerticalLayout {
+            width: parent.width;
+            height: parent.height;
+            spacing: 0px;
 
             Rectangle {
                 width: parent.width;
-                height: parent.height;
-                background: #00000080;
-            }
+                height: 64px;
+                background: #f3edf7;
 
-            clicked => {
-                root.drawer-open = false;
-            }
-        }
+                Text {
+                    x: 24px;
+                    y: (parent.height - self.height) / 2;
+                    text: "Duped";
+                    font-size: 22px;
+                    font-weight: 600;
+                    color: #1d192b;
+                }
 
-        // The actual side panel.
-        Rectangle {
-            width: root.drawer-width;
-            height: parent.height;
-            x: root.drawer-open ? 0px : -self.width;
-            background: #fffbff;
-            clip: true;
+                IconButton {
+                    x: parent.width - self.width - 12px;
+                    y: (parent.height - self.height) / 2;
+                    icon: @image-url("icons/close.svg");
+                    tooltip: "Close menu";
 
-            animate x {
-                duration: 220ms;
+                    clicked => {
+                        root.drawer-open = false;
+                    }
+                }
             }
 
             VerticalLayout {
                 width: parent.width;
-                height: parent.height;
-                spacing: 0px;
-
-                Rectangle {
-                    height: 64px;
-                    background: #f3edf7;
-
-                    Text {
-                        x: 24px;
-                        y: (parent.height - self.height) / 2;
-                        text: "Duped";
-                        font-size: 22px;
-                        font-weight: 600;
-                        color: #1d192b;
-                    }
-
-                    IconButton {
-                        x: parent.width - self.width - 12px;
-                        y: (parent.height - self.height) / 2;
-                        icon: @image-url("icons/close.svg");
-                        tooltip: "Close menu";
-
-                        clicked => {
-                            root.drawer-open = false;
-                        }
-                    }
-                }
+                padding-left: 24px;
+                padding-top: 24px;
+                spacing: 16px;
 
                 Text {
                     text: "Navigation";
-                    x: 24px;
                     color: #49454f;
                     font-size: 14px;
                 }
 
                 Text {
                     text: "Duplicate finder";
-                    x: 24px;
                     color: #1d192b;
                     font-size: 16px;
                 }
             }
+        }
 
-            // Consume input inside the panel so that it does not activate
-            // the background scrim's click-to-close handler.
-            TouchArea {
-                width: parent.width;
-                height: parent.height;
-            }
+        // Keep drawer taps from reaching the scrim.
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
         }
     }
 }
