@@ -13,17 +13,27 @@ export component MainWindow inherits MaterialWindow {
     title: "Duped";
     disable-hover: true;
 
-    // Explicitly size the shell to the window; don't use a layout here.
+    // Full-window shell. Keep the system-bar background separate from
+    // the interactive app bar, which starts below the top safe area.
     Rectangle {
         width: 100%;
         height: 100%;
         background: transparent;
 
-        app-bar := AppBar {
+        Rectangle {
             x: 0px;
             y: 0px;
             width: parent.width;
-            // Let AppBar use its intrinsic height.
+            height: root.safe-area-insets.top;
+            background: #08609a;
+        }
+
+        app-bar := AppBar {
+            x: 0px;
+            y: root.safe-area-insets.top;
+            width: parent.width;
+            height: 48px;
+
             title: "Duped";
             show-background: true;
 
@@ -40,9 +50,9 @@ export component MainWindow inherits MaterialWindow {
 
         Rectangle {
             x: 0px;
-            y: app-bar.height;
+            y: app-bar.y + app-bar.height;
             width: parent.width;
-            height: parent.height - app-bar.height;
+            height: parent.height - self.y;
             background: transparent;
 
             FilledButton {
@@ -60,8 +70,10 @@ export component MainWindow inherits MaterialWindow {
 
     // Edge swipe area.
     TouchArea {
+        x: 0px;
+        y: root.safe-area-insets.top;
         width: 32px;
-        height: parent.height;
+        height: parent.height - root.safe-area-insets.top;
 
         moved => {
             if (!root.drawer-open && self.pressed && self.mouse-x > 64px) {
@@ -70,8 +82,10 @@ export component MainWindow inherits MaterialWindow {
         }
     }
 
-    // Scrim is only present while open.
+    // Scrim is only present while the drawer is open.
     if root.drawer-open : TouchArea {
+        x: 0px;
+        y: 0px;
         width: parent.width;
         height: parent.height;
 
@@ -86,7 +100,7 @@ export component MainWindow inherits MaterialWindow {
         }
     }
 
-    // Drawer is an overlay, outside the app shell.
+    // Drawer is an overlay outside the app shell.
     Rectangle {
         width: root.drawer-width;
         height: parent.height;
@@ -148,7 +162,7 @@ export component MainWindow inherits MaterialWindow {
             }
         }
 
-        // Consume touches on the panel.
+        // Consume touches on the drawer panel.
         TouchArea {
             width: parent.width;
             height: parent.height;
