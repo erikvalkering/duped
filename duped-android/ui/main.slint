@@ -13,24 +13,26 @@ export component MainWindow inherits MaterialWindow {
     title: "Duped";
     disable-hover: true;
 
-    // Full-window shell. Keep the system-bar background separate from
-    // the interactive app bar, which starts below the top safe area.
+    // Full-window shell.
     Rectangle {
         width: 100%;
         height: 100%;
         background: transparent;
 
+        // Match the system-bar area to the AppBar background.
         Rectangle {
             x: 0px;
             y: 0px;
             width: parent.width;
             height: root.safe-area-insets.top;
+            background: MaterialPalette.primary;
         }
 
         app-bar := AppBar {
             x: 0px;
             y: root.safe-area-insets.top;
             width: parent.width;
+            height: 56px;
 
             title: "Duped";
             show-background: true;
