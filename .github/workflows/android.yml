@@ -46,20 +46,8 @@ jobs:
 
           VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH + 1))
 
-          # Update existing entries, or append them to [package.metadata.android].
-          if grep -q '^version_name[[:space:]]*=' Cargo.toml; then
-            sed -i -E "s/^version_name[[:space:]]*=.*/version_name = "$VERSION"/" Cargo.toml
-          else
-            sed -i '/^[package.metadata.android]/a version_name = "'"$VERSION"'"' Cargo.toml
-          fi
-
-          if grep -q '^version_code[[:space:]]*=' Cargo.toml; then
-            sed -i -E "s/^version_code[[:space:]]*=.*/version_code = $VERSION_CODE/" Cargo.toml
-          else
-            sed -i '/^[package.metadata.android]/a version_code = '"$VERSION_CODE" Cargo.toml
-          fi
-
-          grep -A4 '^[package.metadata.android]' Cargo.toml
+          # Update existing entry
+          sed -i -E "s/^version[[:space:]]*=.*/version = "$VERSION"/" Cargo.toml
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -135,15 +123,12 @@ jobs:
           key_alias = "${SIGNING_KEY_ALIAS}"
           EOF
 
-      - name: Display effective Android metadata
+      - name: Display Cargo.toml
         working-directory: duped-android
         shell: bash
         run: |
           set -euo pipefail
-
-          grep -n -A80 \
-            'package.metadata.android' \
-            Cargo.toml
+          cat Cargo.toml
 
       - name: Build signed release APK
         working-directory: duped-android
