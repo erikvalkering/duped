@@ -1,5 +1,5 @@
-use std::{env, path::PathBuf};
 use slint_interpreter::Compiler;
+use std::{env, path::PathBuf};
 
 fn main() {
     let mut args = env::args_os().skip(1);
@@ -9,7 +9,22 @@ fn main() {
     });
 
     let path = PathBuf::from(path);
-    let compiler = Compiler::default();
+
+    let project_root = env::current_dir()
+        .expect("Could not determine current directory")
+        .parent()
+        .expect("Could not determine repository root")
+        .to_path_buf();
+
+    let mut compiler = Compiler::default();
+    compiler.set_library_paths(std::collections::HashMap::from([(
+        "material".to_string(),
+        project_root
+            .join("duped-android")
+            .join("material-1.1.0")
+            .join("material.slint"),
+    )]));
+
     let result = spin_on::spin_on(compiler.build_from_path(&path));
 
     let mut has_error = false;
