@@ -57,6 +57,8 @@ export component MainWindow inherits MaterialWindow {
             background: transparent;
 
             FilledButton {
+    text: "Scan Downloads";
+    // TODO: wire up click handler and state
                 text: "Count: " + root.count;
                 icon: @image-url("slint-logo.svg");
                 x: (parent.width - self.width) / 2;
