@@ -7,6 +7,8 @@ import {
 } from "@material";
 
 export component MainWindow inherits MaterialWindow {
+    in-out property <bool> scanning_downloads: false;
+    in-out property <int> downloads_count: 0;
     in-out property <int> count: 0;
     property <bool> drawer-open: false;
     property <length> drawer-width: 320px;
