@@ -7,6 +7,7 @@ import {
 } from "@material";
 
 export component MainWindow inherits MaterialWindow {
+    callback scan_downloads();
     in-out property <bool> scanning_downloads: false;
     in-out property <int> downloads_count: 0;
     in-out property <int> count: 0;
