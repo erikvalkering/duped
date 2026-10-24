@@ -59,13 +59,27 @@ export component MainWindow inherits MaterialWindow {
             height: parent.height - self.y;
             background: transparent;
 
-            FilledButton {
-    text: !scanning_downloads ? "Scan Downloads" : "Files: " + downloads_count;
-    enabled: !scanning_downloads;
-    icon: @image-url("slint-logo.svg");
-    x: (parent.width - self.width) / 2;
-    y: (parent.height - self.height) / 2;
-    clicked => { scan_downloads(); }
+            VerticalLayout {
+    spacing: 16px;
+    width: parent.width;
+    height: parent.height;
+    alignment: center;
+    
+    FilledButton {
+        text: !scanning_downloads ? "Scan Downloads" : "Files: " + downloads_count;
+        enabled: !scanning_downloads;
+        clicked => { scan_downloads(); }
+    }
+    FilledButton {
+        text: !scanning_parent ? "Scan Parent" : "Files: " + parent_count;
+        enabled: !scanning_parent;
+        clicked => { scan_parent(); }
+    }
+    FilledButton {
+        text: !scanning_root ? "Scan Root" : "Files: " + root_count;
+        enabled: !scanning_root;
+        clicked => { scan_root(); }
+    }
 }
         }
     }
