@@ -71,68 +71,33 @@ export component MainWindow inherits MaterialWindow {
     alignment: center;
     
     Text {
-        text: "Files found: " + downloads_count;
+        text: "Files found: " + files_count;
         horizontal-alignment: center;
     }
     FilledButton {
         text: scanning_downloads ? "Scanning..." : "Scan Downloads";
-        enabled: !scanning_downloads;
+        enabled: !scanning_downloads && !scanning_parent && !scanning_root;
         clicked => { scan_downloads(); }
-    }
-    ScrollView {
-        height: 120px;
-        width: parent.width - 32px;
-        Rectangle {
-            width: parent.width - 32px;
-            height: downloads_files.length * 24px;
-            VerticalLayout {
-                for file in downloads_files : Text {
-                    text: file;
-                    font-size: 14px;
-                }
-            }
-        }
-    }
-    Text {
-        text: "Files found: " + parent_count;
-        horizontal-alignment: center;
     }
     FilledButton {
         text: scanning_parent ? "Scanning..." : "Scan Parent";
-        enabled: !scanning_parent;
+        enabled: !scanning_parent && !scanning_downloads && !scanning_root;
         clicked => { scan_parent(); }
-    }
-    ScrollView {
-        height: 120px;
-        width: parent.width - 32px;
-        Rectangle {
-            width: parent.width - 32px;
-            height: parent_files.length * 24px;
-            VerticalLayout {
-                for file in parent_files : Text {
-                    text: file;
-                    font-size: 14px;
-                }
-            }
-        }
-    }
-    Text {
-        text: "Files found: " + root_count;
-        horizontal-alignment: center;
     }
     FilledButton {
         text: scanning_root ? "Scanning..." : "Scan Root";
         enabled: !scanning_root && !scanning_downloads && !scanning_parent;
         clicked => { scan_root(); }
     }
-    ScrollView {
-        height: 120px;
+    Flickable {
         width: parent.width - 32px;
+        height: 180px;
+        content-height: files_list.length * 24px;
         Rectangle {
             width: parent.width - 32px;
-            height: root_files.length * 24px;
+            height: files_list.length * 24px;
             VerticalLayout {
-                for file in root_files : Text {
+                for file in files_list : Text {
                     text: file;
                     font-size: 14px;
                 }
