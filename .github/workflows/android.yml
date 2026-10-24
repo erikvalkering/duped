@@ -49,10 +49,29 @@ jobs:
           # Update existing entry
           sed -i -E "s/^version[[:space:]]*=.*/version = \"$VERSION\"/" Cargo.toml
 
+      - name: Cache Rust toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup
+            ~/.cargo
+          key: rust-toolchain-${{ runner.os }}-${{ env.RUST_TARGET }}-${{ hashFiles('**/rust-toolchain') }}
+          restore-keys: |
+            rust-toolchain-${{ runner.os }}-${{ env.RUST_TARGET }}-
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ env.RUST_TARGET }}
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_SDK_ROOT }}
+          key: android-sdk-${{ runner.os }}-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_BUILD_TOOLS }}
+          restore-keys: |
+            android-sdk-${{ runner.os }}-
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -71,6 +90,14 @@ jobs:
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
           sdkmanager --version
           adb version
+
+      - name: Cache cargo-apk2
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-apk2
+          key: cargo-apk2-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-apk2-${{ runner.os }}-
 
       - name: Install cargo-apk2
         shell: bash
