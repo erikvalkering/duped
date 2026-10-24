@@ -9,18 +9,24 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_downloads(true);
+                ui.set_files_list(slint::SharedVector::from(vec![]));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
                 let mut count = 0;
+                let mut files = Vec::new();
                 let downloads = std::env::var("HOME").unwrap_or("/storage/emulated/0/Download".to_string());
                 for entry in walkdir::WalkDir::new(downloads) {
-                    if entry.is_ok() {
+                    if let Ok(entry) = entry {
                         count += 1;
+                        let path = entry.path().display().to_string();
+                        files.push(path.clone());
+                        let files_clone = files.clone();
                         let ui_weak3 = ui_weak2.clone();
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
-                                ui.set_downloads_count(count);
+                                ui.set_files_count(count);
+                                ui.set_files_list(slint::SharedVector::from(files_clone));
                             }
                         }).unwrap();
                     }
@@ -41,18 +47,24 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_parent(true);
+                ui.set_files_list(slint::SharedVector::from(vec![]));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
                 let mut count = 0;
+                let mut files = Vec::new();
                 let parent = "/storage/emulated/0";
                 for entry in walkdir::WalkDir::new(parent) {
-                    if entry.is_ok() {
+                    if let Ok(entry) = entry {
                         count += 1;
+                        let path = entry.path().display().to_string();
+                        files.push(path.clone());
+                        let files_clone = files.clone();
                         let ui_weak3 = ui_weak2.clone();
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
-                                ui.set_parent_count(count);
+                                ui.set_files_count(count);
+                                ui.set_files_list(slint::SharedVector::from(files_clone));
                             }
                         }).unwrap();
                     }
@@ -73,18 +85,24 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_root(true);
+                ui.set_files_list(slint::SharedVector::from(vec![]));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
                 let mut count = 0;
+                let mut files = Vec::new();
                 let root = "/";
                 for entry in walkdir::WalkDir::new(root) {
-                    if entry.is_ok() {
+                    if let Ok(entry) = entry {
                         count += 1;
+                        let path = entry.path().display().to_string();
+                        files.push(path.clone());
+                        let files_clone = files.clone();
                         let ui_weak3 = ui_weak2.clone();
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
-                                ui.set_root_count(count);
+                                ui.set_files_count(count);
+                                ui.set_files_list(slint::SharedVector::from(files_clone));
                             }
                         }).unwrap();
                     }

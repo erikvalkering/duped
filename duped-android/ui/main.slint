@@ -12,10 +12,9 @@ export component MainWindow inherits MaterialWindow {
     callback scan_root();
     in-out property <bool> scanning_parent: false;
     in-out property <bool> scanning_root: false;
-    in-out property <int> parent_count: 0;
-    in-out property <int> root_count: 0;
     in-out property <bool> scanning_downloads: false;
-    in-out property <int> downloads_count: 0;
+    in-out property <int> files_count: 0;
+    in-out property <[string]> files_list: [];
     in-out property <int> count: 0;
     property <bool> drawer-open: false;
     property <length> drawer-width: 320px;
@@ -80,15 +79,65 @@ export component MainWindow inherits MaterialWindow {
         enabled: !scanning_downloads;
         clicked => { scan_downloads(); }
     }
+    ScrollView {
+        height: 120px;
+        width: parent.width - 32px;
+        Rectangle {
+            width: parent.width - 32px;
+            height: downloads_files.length * 24px;
+            VerticalLayout {
+                for file in downloads_files : Text {
+                    text: file;
+                    font-size: 14px;
+                }
+            }
+        }
+    }
+    Text {
+        text: "Files found: " + parent_count;
+        horizontal-alignment: center;
+    }
     FilledButton {
-        text: !scanning_parent ? "Scan Parent" : "Files: " + parent_count;
+        text: scanning_parent ? "Scanning..." : "Scan Parent";
         enabled: !scanning_parent;
         clicked => { scan_parent(); }
     }
+    ScrollView {
+        height: 120px;
+        width: parent.width - 32px;
+        Rectangle {
+            width: parent.width - 32px;
+            height: parent_files.length * 24px;
+            VerticalLayout {
+                for file in parent_files : Text {
+                    text: file;
+                    font-size: 14px;
+                }
+            }
+        }
+    }
+    Text {
+        text: "Files found: " + root_count;
+        horizontal-alignment: center;
+    }
     FilledButton {
-        text: !scanning_root ? "Scan Root" : "Files: " + root_count;
-        enabled: !scanning_root;
+        text: scanning_root ? "Scanning..." : "Scan Root";
+        enabled: !scanning_root && !scanning_downloads && !scanning_parent;
         clicked => { scan_root(); }
+    }
+    ScrollView {
+        height: 120px;
+        width: parent.width - 32px;
+        Rectangle {
+            width: parent.width - 32px;
+            height: root_files.length * 24px;
+            VerticalLayout {
+                for file in root_files : Text {
+                    text: file;
+                    font-size: 14px;
+                }
+            }
+        }
     }
 }
         }
