@@ -8,6 +8,12 @@ import {
 
 export component MainWindow inherits MaterialWindow {
     callback scan_downloads();
+    callback scan_parent();
+    callback scan_root();
+    in-out property <bool> scanning_parent: false;
+    in-out property <bool> scanning_root: false;
+    in-out property <int> parent_count: 0;
+    in-out property <int> root_count: 0;
     in-out property <bool> scanning_downloads: false;
     in-out property <int> downloads_count: 0;
     in-out property <int> count: 0;
