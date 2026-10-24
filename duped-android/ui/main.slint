@@ -71,8 +71,12 @@ export component MainWindow inherits MaterialWindow {
     height: parent.height;
     alignment: center;
     
+    Text {
+        text: "Files found: " + downloads_count;
+        horizontal-alignment: center;
+    }
     FilledButton {
-        text: !scanning_downloads ? "Scan Downloads" : "Files: " + downloads_count;
+        text: scanning_downloads ? "Scanning..." : "Scan Downloads";
         enabled: !scanning_downloads;
         clicked => { scan_downloads(); }
     }
