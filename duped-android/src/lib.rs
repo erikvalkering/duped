@@ -9,13 +9,17 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_downloads(true);
-                ui.set_files_list(slint::SharedVector::from(vec![]));
+                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(Vec::<
+                    slint::SharedString,
+                >::new(
+                ))));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
                 let mut count = 0;
                 let mut files = Vec::new();
-                let downloads = std::env::var("HOME").unwrap_or("/storage/emulated/0/Download".to_string());
+                let downloads =
+                    std::env::var("HOME").unwrap_or("/storage/emulated/0/Download".to_string());
                 for entry in walkdir::WalkDir::new(downloads) {
                     if let Ok(entry) = entry {
                         count += 1;
@@ -26,9 +30,15 @@ fn ui() -> MainWindow {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
                                 ui.set_files_count(count);
-                                ui.set_files_list(slint::SharedVector::from(files_clone));
+                                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(
+                                    files_clone
+                                        .iter()
+                                        .map(|s| slint::SharedString::from(s.as_str()))
+                                        .collect::<Vec<_>>(),
+                                )));
                             }
-                        }).unwrap();
+                        })
+                        .unwrap();
                     }
                 }
                 let ui_weak4 = ui_weak2.clone();
@@ -36,7 +46,8 @@ fn ui() -> MainWindow {
                     if let Some(ui) = ui_weak4.upgrade() {
                         ui.set_scanning_downloads(false);
                     }
-                }).unwrap();
+                })
+                .unwrap();
             });
         }
     });
@@ -47,7 +58,10 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_parent(true);
-                ui.set_files_list(slint::SharedVector::from(vec![]));
+                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(Vec::<
+                    slint::SharedString,
+                >::new(
+                ))));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
@@ -64,9 +78,15 @@ fn ui() -> MainWindow {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
                                 ui.set_files_count(count);
-                                ui.set_files_list(slint::SharedVector::from(files_clone));
+                                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(
+                                    files_clone
+                                        .iter()
+                                        .map(|s| slint::SharedString::from(s.as_str()))
+                                        .collect::<Vec<_>>(),
+                                )));
                             }
-                        }).unwrap();
+                        })
+                        .unwrap();
                     }
                 }
                 let ui_weak4 = ui_weak2.clone();
@@ -74,7 +94,8 @@ fn ui() -> MainWindow {
                     if let Some(ui) = ui_weak4.upgrade() {
                         ui.set_scanning_parent(false);
                     }
-                }).unwrap();
+                })
+                .unwrap();
             });
         }
     });
@@ -85,7 +106,10 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_root(true);
-                ui.set_files_list(slint::SharedVector::from(vec![]));
+                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(Vec::<
+                    slint::SharedString,
+                >::new(
+                ))));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
@@ -102,9 +126,15 @@ fn ui() -> MainWindow {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
                                 ui.set_files_count(count);
-                                ui.set_files_list(slint::SharedVector::from(files_clone));
+                                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(
+                                    files_clone
+                                        .iter()
+                                        .map(|s| slint::SharedString::from(s.as_str()))
+                                        .collect::<Vec<_>>(),
+                                )));
                             }
-                        }).unwrap();
+                        })
+                        .unwrap();
                     }
                 }
                 let ui_weak4 = ui_weak2.clone();
@@ -112,7 +142,8 @@ fn ui() -> MainWindow {
                     if let Some(ui) = ui_weak4.upgrade() {
                         ui.set_scanning_root(false);
                     }
-                }).unwrap();
+                })
+                .unwrap();
             });
         }
     });
