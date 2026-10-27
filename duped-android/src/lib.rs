@@ -9,10 +9,7 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_downloads(true);
-                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(Vec::<
-                    slint::SharedString,
-                >::new(
-                ))));
+                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from_slice(&[])));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
@@ -30,12 +27,14 @@ fn ui() -> MainWindow {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
                                 ui.set_files_count(count);
-                                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(
-                                    files_clone
-                                        .iter()
-                                        .map(|s| slint::SharedString::from(s.as_str()))
-                                        .collect::<Vec<_>>(),
-                                )));
+                                ui.set_files_list(slint::ModelRc::from(
+                                    slint::SharedVector::from_slice(
+                                        &files_clone
+                                            .iter()
+                                            .map(|s| slint::SharedString::from(s.as_str()))
+                                            .collect::<Vec<_>>(),
+                                    ),
+                                ));
                             }
                         })
                         .unwrap();
@@ -58,10 +57,7 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_parent(true);
-                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(Vec::<
-                    slint::SharedString,
-                >::new(
-                ))));
+                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from_slice(&[])));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
@@ -78,12 +74,14 @@ fn ui() -> MainWindow {
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak3.upgrade() {
                                 ui.set_files_count(count);
-                                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(
-                                    files_clone
-                                        .iter()
-                                        .map(|s| slint::SharedString::from(s.as_str()))
-                                        .collect::<Vec<_>>(),
-                                )));
+                                ui.set_files_list(slint::ModelRc::from(
+                                    slint::SharedVector::from_slice(
+                                        &files_clone
+                                            .iter()
+                                            .map(|s| slint::SharedString::from(s.as_str()))
+                                            .collect::<Vec<_>>(),
+                                    ),
+                                ));
                             }
                         })
                         .unwrap();
@@ -106,10 +104,7 @@ fn ui() -> MainWindow {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
                 ui.set_scanning_root(true);
-                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from(Vec::<
-                    slint::SharedString,
-                >::new(
-                ))));
+                ui.set_files_list(slint::ModelRc::from(slint::SharedVector::from_slice(&[])));
             }
             let ui_weak2 = ui_weak.clone();
             std::thread::spawn(move || {
