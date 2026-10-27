@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.ANDROID_SDK_ROOT }}
+            $HOME/android-sdk
           key: android-sdk-${{ runner.os }}-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_BUILD_TOOLS }}
           restore-keys: |
             android-sdk-${{ runner.os }}-
