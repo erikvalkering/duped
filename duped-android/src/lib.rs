@@ -1,6 +1,9 @@
 slint::include_modules!();
 
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 fn ui() -> MainWindow {
     let ui = MainWindow::new().unwrap();
