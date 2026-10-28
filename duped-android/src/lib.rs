@@ -74,7 +74,7 @@ fn ui() -> MainWindow {
             std::thread::spawn(move || {
                 let mut count = 0;
                 let mut files = Vec::new();
-                let parent = "/storage/emulated/0";
+                let parent = "/storage/emulated/0/Documents";
                 for entry in walkdir::WalkDir::new(parent) {
                     if cancel_flag.load(Ordering::Relaxed) {
                         break;
