@@ -22,29 +22,29 @@ fn ui() -> MainWindow {
                 let downloads =
                     std::env::var("HOME").unwrap_or("/storage/emulated/0/Download".to_string());
                 for entry in walkdir::WalkDir::new(downloads) {
-    if cancel_flag.load(Ordering::Relaxed) {
-        break;
-    }
-    // Only add files, not directories
-    if let Ok(entry) = entry {
-        if entry.file_type().is_file() {
+                    if cancel_flag.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    // Only add files, not directories
                     if let Ok(entry) = entry {
-                        count += 1;
-                        let path = entry.path().display().to_string();
-                        files.push(path.clone());
-                        let files_clone = files.clone();
-                        let ui_weak3 = ui_weak2.clone();
-                        slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak3.upgrade() {
-                                ui.set_files_count(count);
-                                let files_vec: Vec<slint::SharedString> = files_clone
-                                    .iter()
-                                    .map(|s| slint::SharedString::from(s.as_str()))
-                                    .collect();
-                                ui.set_files_list(slint::ModelRc::from(files_vec.as_slice()));
-                            }
-                        })
-                        .unwrap();
+                        if entry.file_type().is_file() {
+                            count += 1;
+                            let path = entry.path().display().to_string();
+                            files.push(path.clone());
+                            let files_clone = files.clone();
+                            let ui_weak3 = ui_weak2.clone();
+                            slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak3.upgrade() {
+                                    ui.set_files_count(count);
+                                    let files_vec: Vec<slint::SharedString> = files_clone
+                                        .iter()
+                                        .map(|s| slint::SharedString::from(s.as_str()))
+                                        .collect();
+                                    ui.set_files_list(slint::ModelRc::from(files_vec.as_slice()));
+                                }
+                            })
+                            .unwrap();
+                        }
                     }
                 }
                 let ui_weak4 = ui_weak2.clone();
@@ -73,29 +73,29 @@ fn ui() -> MainWindow {
                 let mut files = Vec::new();
                 let parent = "/storage/emulated/0";
                 for entry in walkdir::WalkDir::new(parent) {
-    if cancel_flag.load(Ordering::Relaxed) {
-        break;
-    }
-    // Only add files, not directories
-    if let Ok(entry) = entry {
-        if entry.file_type().is_file() {
+                    if cancel_flag.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    // Only add files, not directories
                     if let Ok(entry) = entry {
-                        count += 1;
-                        let path = entry.path().display().to_string();
-                        files.push(path.clone());
-                        let files_clone = files.clone();
-                        let ui_weak3 = ui_weak2.clone();
-                        slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak3.upgrade() {
-                                ui.set_files_count(count);
-                                let files_vec: Vec<slint::SharedString> = files_clone
-                                    .iter()
-                                    .map(|s| slint::SharedString::from(s.as_str()))
-                                    .collect();
-                                ui.set_files_list(slint::ModelRc::from(files_vec.as_slice()));
-                            }
-                        })
-                        .unwrap();
+                        if entry.file_type().is_file() {
+                            count += 1;
+                            let path = entry.path().display().to_string();
+                            files.push(path.clone());
+                            let files_clone = files.clone();
+                            let ui_weak3 = ui_weak2.clone();
+                            slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak3.upgrade() {
+                                    ui.set_files_count(count);
+                                    let files_vec: Vec<slint::SharedString> = files_clone
+                                        .iter()
+                                        .map(|s| slint::SharedString::from(s.as_str()))
+                                        .collect();
+                                    ui.set_files_list(slint::ModelRc::from(files_vec.as_slice()));
+                                }
+                            })
+                            .unwrap();
+                        }
                     }
                 }
                 let ui_weak4 = ui_weak2.clone();
@@ -124,29 +124,29 @@ fn ui() -> MainWindow {
                 let mut files = Vec::new();
                 let root = "/";
                 for entry in walkdir::WalkDir::new(root) {
-    if cancel_flag.load(Ordering::Relaxed) {
-        break;
-    }
-    // Only add files, not directories
-    if let Ok(entry) = entry {
-        if entry.file_type().is_file() {
+                    if cancel_flag.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    // Only add files, not directories
                     if let Ok(entry) = entry {
-                        count += 1;
-                        let path = entry.path().display().to_string();
-                        files.push(path.clone());
-                        let files_clone = files.clone();
-                        let ui_weak3 = ui_weak2.clone();
-                        slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak3.upgrade() {
-                                ui.set_files_count(count);
-                                let files_vec: Vec<slint::SharedString> = files_clone
-                                    .iter()
-                                    .map(|s| slint::SharedString::from(s.as_str()))
-                                    .collect();
-                                ui.set_files_list(slint::ModelRc::from(files_vec.as_slice()));
-                            }
-                        })
-                        .unwrap();
+                        if entry.file_type().is_file() {
+                            count += 1;
+                            let path = entry.path().display().to_string();
+                            files.push(path.clone());
+                            let files_clone = files.clone();
+                            let ui_weak3 = ui_weak2.clone();
+                            slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_weak3.upgrade() {
+                                    ui.set_files_count(count);
+                                    let files_vec: Vec<slint::SharedString> = files_clone
+                                        .iter()
+                                        .map(|s| slint::SharedString::from(s.as_str()))
+                                        .collect();
+                                    ui.set_files_list(slint::ModelRc::from(files_vec.as_slice()));
+                                }
+                            })
+                            .unwrap();
+                        }
                     }
                 }
                 let ui_weak4 = ui_weak2.clone();
