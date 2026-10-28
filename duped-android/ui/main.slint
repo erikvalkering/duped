@@ -10,6 +10,7 @@ export component MainWindow inherits MaterialWindow {
     callback scan_downloads();
     callback scan_parent();
     callback scan_root();
+    callback cancel_scan();
     in-out property <bool> scanning_parent: false;
     in-out property <bool> scanning_root: false;
     in-out property <bool> scanning_downloads: false;
@@ -75,19 +76,37 @@ export component MainWindow inherits MaterialWindow {
         horizontal-alignment: center;
     }
     FilledButton {
-        text: scanning_downloads ? "Scanning..." : "Scan Downloads";
-        enabled: !scanning_downloads && !scanning_parent && !scanning_root;
-        clicked => { scan_downloads(); }
+        text: scanning_downloads ? "Cancel" : "Scan Downloads";
+        enabled: !scanning_parent && !scanning_root;
+        clicked => {
+            if (scanning_downloads) {
+                cancel_scan();
+            } else {
+                scan_downloads();
+            }
+        }
     }
     FilledButton {
-        text: scanning_parent ? "Scanning..." : "Scan Parent";
-        enabled: !scanning_parent && !scanning_downloads && !scanning_root;
-        clicked => { scan_parent(); }
+        text: scanning_parent ? "Cancel" : "Scan Parent";
+        enabled: !scanning_downloads && !scanning_root;
+        clicked => {
+            if (scanning_parent) {
+                cancel_scan();
+            } else {
+                scan_parent();
+            }
+        }
     }
     FilledButton {
-        text: scanning_root ? "Scanning..." : "Scan Root";
-        enabled: !scanning_root && !scanning_downloads && !scanning_parent;
-        clicked => { scan_root(); }
+        text: scanning_root ? "Cancel" : "Scan Root";
+        enabled: !scanning_downloads && !scanning_parent;
+        clicked => {
+            if (scanning_root) {
+                cancel_scan();
+            } else {
+                scan_root();
+            }
+        }
     }
     Flickable {
         width: parent.width - 32px;

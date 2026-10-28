@@ -1,10 +1,14 @@
 slint::include_modules!();
 
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+
 fn ui() -> MainWindow {
     let ui = MainWindow::new().unwrap();
     let ui_weak = ui.as_weak();
+    let cancel_flag = Arc::new(AtomicBool::new(false));
     ui.on_scan_downloads({
         let ui_weak = ui_weak.clone();
+        let cancel_flag = cancel_flag.clone();
         move || {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
@@ -18,6 +22,9 @@ fn ui() -> MainWindow {
                 let downloads =
                     std::env::var("HOME").unwrap_or("/storage/emulated/0/Download".to_string());
                 for entry in walkdir::WalkDir::new(downloads) {
+    if cancel_flag.load(Ordering::Relaxed) {
+        break;
+    }
     // Only add files, not directories
     if let Ok(entry) = entry {
         if entry.file_type().is_file() {
@@ -53,6 +60,7 @@ fn ui() -> MainWindow {
 
     ui.on_scan_parent({
         let ui_weak = ui_weak.clone();
+        let cancel_flag = cancel_flag.clone();
         move || {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
@@ -65,6 +73,9 @@ fn ui() -> MainWindow {
                 let mut files = Vec::new();
                 let parent = "/storage/emulated/0";
                 for entry in walkdir::WalkDir::new(parent) {
+    if cancel_flag.load(Ordering::Relaxed) {
+        break;
+    }
     // Only add files, not directories
     if let Ok(entry) = entry {
         if entry.file_type().is_file() {
@@ -100,6 +111,7 @@ fn ui() -> MainWindow {
 
     ui.on_scan_root({
         let ui_weak = ui_weak.clone();
+        let cancel_flag = cancel_flag.clone();
         move || {
             let ui_weak2 = ui_weak.clone();
             if let Some(ui) = ui_weak2.upgrade() {
@@ -112,6 +124,9 @@ fn ui() -> MainWindow {
                 let mut files = Vec::new();
                 let root = "/";
                 for entry in walkdir::WalkDir::new(root) {
+    if cancel_flag.load(Ordering::Relaxed) {
+        break;
+    }
     // Only add files, not directories
     if let Ok(entry) = entry {
         if entry.file_type().is_file() {
@@ -142,6 +157,12 @@ fn ui() -> MainWindow {
                 })
                 .unwrap();
             });
+        }
+    });
+    ui.on_cancel_scan({
+        let cancel_flag = cancel_flag.clone();
+        move || {
+            cancel_flag.store(true, Ordering::Relaxed);
         }
     });
     ui
