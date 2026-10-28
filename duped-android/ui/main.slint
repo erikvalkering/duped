@@ -8,10 +8,10 @@ import {
 
 export component MainWindow inherits MaterialWindow {
     callback scan_downloads();
-    callback scan_parent();
+    callback scan_documents();
     callback scan_root();
     callback cancel_scan();
-    in-out property <bool> scanning_parent: false;
+    in-out property <bool> scanning_documents: false;
     in-out property <bool> scanning_root: false;
     in-out property <bool> scanning_downloads: false;
     in-out property <int> files_count: 0;
@@ -77,7 +77,7 @@ export component MainWindow inherits MaterialWindow {
     }
     FilledButton {
         text: scanning_downloads ? "Cancel" : "Scan Downloads";
-        enabled: !scanning_parent && !scanning_root;
+        enabled: !scanning_documents && !scanning_root;
         clicked => {
             if (scanning_downloads) {
                 cancel_scan();
@@ -87,19 +87,19 @@ export component MainWindow inherits MaterialWindow {
         }
     }
     FilledButton {
-        text: scanning_parent ? "Cancel" : "Scan Parent";
+        text: scanning_documents ? "Cancel" : "Scan Documents";
         enabled: !scanning_downloads && !scanning_root;
         clicked => {
-            if (scanning_parent) {
+            if (scanning_documents) {
                 cancel_scan();
             } else {
-                scan_parent();
+                scan_documents();
             }
         }
     }
     FilledButton {
         text: scanning_root ? "Cancel" : "Scan Root";
-        enabled: !scanning_downloads && !scanning_parent;
+        enabled: !scanning_downloads && !scanning_documents;
         clicked => {
             if (scanning_root) {
                 cancel_scan();
