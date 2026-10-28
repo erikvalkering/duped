@@ -5,7 +5,6 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use std::sync::Arc;
 fn start_scan<FSetScan, FSetFiles, FSetCount>(
     ui_weak: &slint::Weak<MainWindow>,
     cancel_flag: Arc<AtomicBool>,
