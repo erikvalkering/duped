@@ -16,6 +16,7 @@ export component MainWindow inherits MaterialWindow {
     in-out property <bool> scanning_downloads: false;
     in-out property <int> files_count: 0;
     in-out property <[string]> files_list: [];
+    in-out property <[string]> debug_entries: [];
 
     property <bool> drawer-open: false;
     property <length> drawer-width: 320px;
@@ -119,6 +120,25 @@ export component MainWindow inherits MaterialWindow {
                 for file in files_list : Text {
                     text: file;
                     font-size: 14px;
+                }
+            }
+        }
+    }
+    Text {
+        text: "Debug: All entries (files and dirs)";
+        horizontal-alignment: center;
+    }
+    Flickable {
+        width: parent.width - 32px;
+        height: 120px;
+        content-height: debug_entries.length * 24px;
+        Rectangle {
+            width: parent.width - 32px;
+            height: debug_entries.length * 24px;
+            VerticalLayout {
+                for entry in debug_entries : Text {
+                    text: entry;
+                    font-size: 12px;
                 }
             }
         }
