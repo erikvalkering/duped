@@ -5,6 +5,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+use std::sync::Arc;
 fn start_scan<FSetScan, FSetFiles, FSetCount>(
     ui_weak: &slint::Weak<MainWindow>,
     cancel_flag: Arc<AtomicBool>,
@@ -18,44 +19,52 @@ fn start_scan<FSetScan, FSetFiles, FSetCount>(
     FSetCount: Fn(&MainWindow, i32) + Send + Sync + 'static,
 {
     let ui_weak = ui_weak.clone();
-    std::thread::spawn(move || {
-        let mut count = 0;
-        let mut files = Vec::new();
-        for entry in walkdir::WalkDir::new(path) {
-            if cancel_flag.load(Ordering::Relaxed) {
-                break;
-            }
-            if let Ok(entry) = entry {
-                if entry.file_type().is_file() {
-                    count += 1;
-                    let path = entry.path().display().to_string();
-                    files.push(path.clone());
-                    let files_clone = files.clone();
-                    let ui_weak3 = ui_weak.clone();
-                    let set_files = &set_files;
-                    let set_count = &set_count;
-                    slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak3.upgrade() {
-                            set_count(&ui, count);
-                            let files_vec: Vec<slint::SharedString> = files_clone
-                                .iter()
-                                .map(|s| slint::SharedString::from(s.as_str()))
-                                .collect();
-                            set_files(&ui, slint::ModelRc::from(files_vec.as_slice()));
-                        }
-                    })
-                    .unwrap();
+    let set_scanning = Arc::new(set_scanning);
+    let set_files = Arc::new(set_files);
+    let set_count = Arc::new(set_count);
+    std::thread::spawn({
+        let set_scanning = set_scanning.clone();
+        let set_files = set_files.clone();
+        let set_count = set_count.clone();
+        move || {
+            let mut count = 0;
+            let mut files = Vec::new();
+            for entry in walkdir::WalkDir::new(path) {
+                if cancel_flag.load(Ordering::Relaxed) {
+                    break;
+                }
+                if let Ok(entry) = entry {
+                    if entry.file_type().is_file() {
+                        count += 1;
+                        let path = entry.path().display().to_string();
+                        files.push(path.clone());
+                        let files_clone = files.clone();
+                        let ui_weak3 = ui_weak.clone();
+                        let set_files = set_files.clone();
+                        let set_count = set_count.clone();
+                        slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak3.upgrade() {
+                                set_count(&ui, count);
+                                let files_vec: Vec<slint::SharedString> = files_clone
+                                    .iter()
+                                    .map(|s| slint::SharedString::from(s.as_str()))
+                                    .collect();
+                                set_files(&ui, slint::ModelRc::from(files_vec.as_slice()));
+                            }
+                        })
+                        .unwrap();
+                    }
                 }
             }
+            let ui_weak4 = ui_weak.clone();
+            let set_scanning = set_scanning.clone();
+            slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak4.upgrade() {
+                    set_scanning(&ui, false);
+                }
+            })
+            .unwrap();
         }
-        let ui_weak4 = ui_weak.clone();
-        let set_scanning = &set_scanning;
-        slint::invoke_from_event_loop(move || {
-            if let Some(ui) = ui_weak4.upgrade() {
-                set_scanning(&ui, false);
-            }
-        })
-        .unwrap();
     });
 }
 
