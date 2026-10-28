@@ -3,7 +3,7 @@
 ## Commit and Tag Policy
 
 - For every small change or fix, always create a separate commit.
-- After each commit, create a new tag in the format `v0.0.xxx` (incrementing from the latest tag).
+- After each commit, create a new tag in the format `v0.0.xx` (no leading zeros, e.g., v0.0.82, not v0.0.082), incrementing from the latest tag.
 - Push both the commit and the tag to the remote repository immediately.
 - This ensures that each change triggers a new APK build in GitHub Actions.
 
