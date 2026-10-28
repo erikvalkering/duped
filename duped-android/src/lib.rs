@@ -18,6 +18,9 @@ fn ui() -> MainWindow {
                 let downloads =
                     std::env::var("HOME").unwrap_or("/storage/emulated/0/Download".to_string());
                 for entry in walkdir::WalkDir::new(downloads) {
+    // Only add files, not directories
+    if let Ok(entry) = entry {
+        if entry.file_type().is_file() {
                     if let Ok(entry) = entry {
                         count += 1;
                         let path = entry.path().display().to_string();
@@ -62,6 +65,9 @@ fn ui() -> MainWindow {
                 let mut files = Vec::new();
                 let parent = "/storage/emulated/0";
                 for entry in walkdir::WalkDir::new(parent) {
+    // Only add files, not directories
+    if let Ok(entry) = entry {
+        if entry.file_type().is_file() {
                     if let Ok(entry) = entry {
                         count += 1;
                         let path = entry.path().display().to_string();
@@ -106,6 +112,9 @@ fn ui() -> MainWindow {
                 let mut files = Vec::new();
                 let root = "/";
                 for entry in walkdir::WalkDir::new(root) {
+    // Only add files, not directories
+    if let Ok(entry) = entry {
+        if entry.file_type().is_file() {
                     if let Ok(entry) = entry {
                         count += 1;
                         let path = entry.path().display().to_string();
