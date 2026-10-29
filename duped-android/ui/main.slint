@@ -11,12 +11,14 @@ export component MainWindow inherits MaterialWindow {
     callback scan_documents();
     callback scan_root();
     callback cancel_scan();
+    callback request_all_files_access();
     in-out property <bool> scanning_documents: false;
     in-out property <bool> scanning_root: false;
     in-out property <bool> scanning_downloads: false;
     in-out property <int> files_count: 0;
     in-out property <[string]> files_list: [];
     in-out property <[string]> debug_entries: [];
+    in-out property <bool> all_files_access: false;
 
     property <bool> drawer-open: false;
     property <length> drawer-width: 320px;
@@ -75,6 +77,11 @@ export component MainWindow inherits MaterialWindow {
     Text {
         text: "Files found: " + files_count;
         horizontal-alignment: center;
+    }
+    FilledButton {
+        text: all_files_access ? "All Files Access Granted" : "Request All Files Access";
+        enabled: !all_files_access;
+        clicked => request_all_files_access();
     }
     FilledButton {
         text: scanning_downloads ? "Cancel" : "Scan Downloads";
