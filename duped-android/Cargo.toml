@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 walkdir = "2"
 jni = "0.21"
+url = "2"
 
 [build-dependencies]
 slint-build = { version = "1.18" }
@@ -19,7 +20,7 @@ package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
 resources = "res"
 
-# IMPORTANT: verify the exact Java-source metadata key required by your
+# IMPORTANT: confirm the exact Java-source metadata key required by your
 # installed cargo-apk2 version. This directory must contain
 # java/com/example/duped/MainActivity.java.
 java_sources = "java"
@@ -47,4 +48,3 @@ categories = ["android.intent.category.LAUNCHER"]
 
 [[package.metadata.android.uses_permission]]
 name = "android.permission.MANAGE_EXTERNAL_STORAGE"
-

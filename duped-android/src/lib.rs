@@ -27,6 +27,7 @@ enum ScanKind {
     Downloads,
     Documents,
     Root,
+    Picked,
 }
 
 impl ScanKind {
@@ -41,6 +42,7 @@ impl ScanKind {
             Self::Root => {
                 ui.set_scanning_root(scanning);
             }
+            Self::Picked => {}
         }
     }
 }
@@ -219,8 +221,8 @@ fn open_android_folder_picker(app: &slint::android::AndroidApp) -> jni::errors::
     let mut env = vm.attach_current_thread()?;
 
     env.with_local_frame(16, |env| {
-        // SAFETY: AndroidApp supplies an unowned global
-        // reference. The app remains alive during this call.
+        // SAFETY: AndroidApp supplies an unowned global reference.
+        // The app remains alive during this call.
         // Do not delete it or wrap it in AutoLocal.
         let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
 
@@ -376,17 +378,48 @@ pub extern "system" fn duped_on_folder_picker_result(
     // SAFETY: `data` is a local JNI reference owned by this callback.
     let data = unsafe { jni::objects::JObject::from_raw(data) };
 
-    let result = env.with_local_frame(16, |env| {
+    let picked = env.with_local_frame(16, |env| {
         activity_result::handle_folder_picker_result(env, data)
     });
 
-    let message = match result {
-        Ok(Some(uri)) => format!("[PICKED] {uri}"),
-        Ok(None) => "[PICKED] No usable folder URI".to_string(),
-        Err(err) => format!("[PICKER ERROR] {err}"),
+    let picked = match picked {
+        Ok(Some(picked)) => picked,
+        Ok(None) => {
+            append_debug_entry("[PICKED] No usable folder URI".to_string());
+            return;
+        }
+        Err(err) => {
+            append_debug_entry(format!("[PICKER ERROR] {err}"));
+            return;
+        }
     };
 
-    append_debug_entry(message);
+    append_debug_entry(format!("[PICKED] {}", picked.tree_uri));
+
+    let local_path = match activity_result::tree_uri_to_local_path(&picked.tree_uri) {
+        Ok(path) => path,
+        Err(err) => {
+            append_debug_entry(format!("[PICKED] Cannot scan as local path: {err}"));
+            return;
+        }
+    };
+
+    append_debug_entry(format!("[PICKED PATH] {local_path}"));
+
+    let Some(ui_weak) = MAIN_WINDOW.get() else {
+        return;
+    };
+
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    let scan_running = Arc::new(AtomicBool::new(false));
+
+    start_scan(
+        ui_weak,
+        cancel_flag,
+        scan_running,
+        ScanKind::Picked,
+        local_path,
+    );
 }
 
 #[cfg(target_os = "android")]

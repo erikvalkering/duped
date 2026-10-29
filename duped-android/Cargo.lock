@@ -1064,6 +1064,7 @@ dependencies = [
  "jni 0.21.1",
  "slint",
  "slint-build",
+ "url",
  "walkdir",
 ]
 

@@ -1,14 +1,17 @@
 use jni::{
     JNIEnv,
-    objects::{JObject, JString, JValue},
+    objects::{JObject, JString},
 };
 
+pub struct PickedFolder {
+    pub tree_uri: String,
+}
+
 /// Extracts the selected directory URI from the picker result.
-///
-/// SAF returns a `content://` tree URI, not necessarily a local
-/// filesystem path. This function returns the URI string; it does not
-/// attempt an unreliable URI-to-path conversion.
-pub fn handle_folder_picker_result(env: &mut JNIEnv<'_>, data: JObject<'_>) -> Option<String> {
+pub fn handle_folder_picker_result(
+    env: &mut JNIEnv<'_>,
+    data: JObject<'_>,
+) -> Option<PickedFolder> {
     if data.is_null() {
         return None;
     }
@@ -36,36 +39,103 @@ pub fn handle_folder_picker_result(env: &mut JNIEnv<'_>, data: JObject<'_>) -> O
 
     let uri_jstring = JString::from(uri_string);
 
-    let uri_text: String = env.get_string(&uri_jstring).ok()?.into();
+    let tree_uri: String = env.get_string(&uri_jstring).ok()?.into();
 
-    Some(uri_text)
+    Some(PickedFolder { tree_uri })
 }
 
-/// Extracts the tree document ID from a SAF tree URI.
+/// Converts a primary-storage SAF tree URI into a local filesystem
+/// path suitable for `walkdir`.
 ///
-/// Useful for diagnostics, but not a reliable conversion to a
-/// filesystem path.
-pub fn tree_document_id(env: &mut JNIEnv<'_>, uri: &JObject<'_>) -> Option<String> {
-    let docs_contract = env.find_class("android/provider/DocumentsContract").ok()?;
+/// Examples:
+///
+/// ```text
+/// content://com.android.externalstorage.documents/tree/primary%3ADownload
+/// -> /storage/emulated/0/Download
+///
+/// content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FMyFolder
+/// -> /storage/emulated/0/Documents/MyFolder
+/// ```
+///
+/// This works only for Android's external-storage provider and its
+/// `primary` root. Other SAF providers may be cloud, USB, or otherwise
+/// non-filesystem-backed, so their URIs cannot be converted reliably.
+pub fn tree_uri_to_local_path(tree_uri: &str) -> Result<String, String> {
+    const EXTERNAL_STORAGE_AUTHORITY: &str = "com.android.externalstorage.documents";
 
-    let doc_id = env
-        .call_static_method(
-            docs_contract,
-            "getTreeDocumentId",
-            "(Landroid/net/Uri;)Ljava/lang/String;",
-            &[JValue::Object(uri)],
-        )
-        .ok()?
-        .l()
-        .ok()?;
+    let uri = url::Url::parse(tree_uri).map_err(|err| format!("Invalid tree URI: {err}"))?;
 
-    if doc_id.is_null() {
-        return None;
+    if uri.scheme() != "content" {
+        return Err(format!("Expected a content:// URI, got {}", uri.scheme()));
     }
 
-    let doc_id_jstring = JString::from(doc_id);
+    let Some(authority) = uri.host_str() else {
+        return Err("Tree URI has no authority".to_string());
+    };
 
-    let doc_id_text: String = env.get_string(&doc_id_jstring).ok()?.into();
+    if authority != EXTERNAL_STORAGE_AUTHORITY {
+        return Err(format!("Unsupported storage provider: {authority}"));
+    }
 
-    Some(doc_id_text)
+    let path = uri.path();
+
+    let Some(encoded_tree_id) = path.split_once("/tree/").map(|(_, rest)| rest) else {
+        return Err("Tree URI does not contain a /tree/ segment".to_string());
+    };
+
+    let tree_id = percent_decode(encoded_tree_id)?;
+
+    // Android's external-storage provider uses `root:relative/path`.
+    let Some(relative_path) = tree_id.strip_prefix("primary:") else {
+        return Err(format!(
+            "Only the primary storage root is supported; got '{tree_id}'"
+        ));
+    };
+
+    if relative_path.contains("..") {
+        return Err("Refusing unsafe relative path in tree URI".to_string());
+    }
+
+    let relative_path = relative_path.trim_start_matches('/').trim_end_matches('/');
+
+    if relative_path.is_empty() {
+        Ok("/storage/emulated/0".to_string())
+    } else {
+        Ok(format!("/storage/emulated/0/{relative_path}"))
+    }
+}
+
+fn percent_decode(input: &str) -> Result<String, String> {
+    let bytes = input.as_bytes();
+
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len() {
+                return Err("Invalid percent encoding".to_string());
+            }
+
+            let high = hex_digit(bytes[index + 1])?;
+            let low = hex_digit(bytes[index + 2])?;
+
+            output.push((high << 4) | low);
+            index += 3;
+        } else {
+            output.push(bytes[index]);
+            index += 1;
+        }
+    }
+
+    String::from_utf8(output).map_err(|err| format!("Invalid UTF-8 in tree ID: {err}"))
+}
+
+fn hex_digit(byte: u8) -> Result<u8, String> {
+    match byte {
+        b'0'..=b'9' => Ok(byte - b'0'),
+        b'a'..=b'f' => Ok(byte - b'a' + 10),
+        b'A'..=b'F' => Ok(byte - b'A' + 10),
+        _ => Err(format!("Invalid hex digit in tree URI: {}", byte as char)),
+    }
 }
