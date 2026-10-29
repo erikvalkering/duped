@@ -256,6 +256,15 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
         }
     });
 
+    // Folder picker button
+    ui.on_browse_folder({
+        let ui_weak = ui.as_weak();
+        move |_dummy| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_debug_entries(slint::ModelRc::from(&[slint::SharedString::from("Folder picker not yet implemented")]));
+            }
+        }
+    });
     ui
 }
 

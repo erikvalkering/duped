@@ -10,6 +10,7 @@ export component MainWindow inherits MaterialWindow {
     callback scan_downloads();
     callback scan_documents();
     callback scan_root();
+    callback browse_folder(string);
     callback cancel_scan();
     callback request_all_files_access();
     in-out property <bool> scanning_documents: false;
@@ -103,6 +104,14 @@ export component MainWindow inherits MaterialWindow {
             } else {
                 scan_documents();
             }
+        }
+    }
+    FilledButton {
+        text: "Browse Folder...";
+        enabled: !scanning_downloads && !scanning_documents && !scanning_root;
+        clicked => {
+            // Open folder picker (handled in Rust)
+            browse_folder("");
         }
     }
     FilledButton {
