@@ -1,9 +1,15 @@
 #[cfg(target_os = "android")]
 mod android_permissions;
+
+#[cfg(target_os = "android")]
 mod android_folder_picker;
+
+#[cfg(target_os = "android")]
 mod activity_result;
 
 slint::include_modules!();
+
+use slint::ComponentHandle;
 
 use std::sync::{
     Arc,
@@ -117,7 +123,7 @@ fn start_scan(
                 }
             });
 
-            // The event loop may already have stopped during shutdown.
+            // The event loop may have stopped during shutdown.
             if result.is_err() {
                 break;
             }
@@ -130,7 +136,7 @@ fn start_scan(
                 kind.set_scanning(&ui, false);
             }
 
-            // Release the guard after the UI has processed completion.
+            // Release the guard after UI completion is processed.
             scan_running_done.store(false, Ordering::Relaxed);
         });
 
@@ -160,13 +166,29 @@ fn open_all_files_access_settings(
     let mut env = vm.attach_current_thread()?;
 
     env.with_local_frame(16, |env| -> Result<(), Box<dyn std::error::Error>> {
-        // SAFETY: AndroidApp supplies an unowned global reference.
-        // The app remains alive throughout this call.
-        //
-        // Do not wrap this reference in AutoLocal or delete it.
+        // SAFETY: AndroidApp supplies an unowned global
+        // reference. The app remains alive during this call.
+        // Do not delete it or wrap it in AutoLocal.
         let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
 
         android_permissions::request_all_files_access(env, &activity)
+    })
+}
+
+#[cfg(target_os = "android")]
+fn open_android_folder_picker(app: &slint::android::AndroidApp) -> jni::errors::Result<()> {
+    // SAFETY: AndroidApp supplies a valid JVM pointer.
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast()) }?;
+
+    let mut env = vm.attach_current_thread()?;
+
+    env.with_local_frame(16, |env| {
+        // SAFETY: AndroidApp supplies an unowned global
+        // reference. The app remains alive during this call.
+        // Do not delete it or wrap it in AutoLocal.
+        let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
+
+        android_folder_picker::open_folder_picker(env, &activity)
     })
 }
 
@@ -258,28 +280,16 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
         }
     });
 
-    // Folder picker button
-    #[cfg(target_os = "android")]
-    {
-        use jni::JNIEnv;
-        use slint::android::android_activity;
-        let activity = android_activity();
-        ui.on_browse_folder(move |_dummy| {
-            let env = unsafe { JNIEnv::from_raw(slint::android::jni_env()) }.unwrap();
-            crate::android_folder_picker::open_folder_picker(&env, activity);
-        });
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        ui.on_browse_folder({
-            let ui_weak = ui.as_weak();
-            move |_dummy| {
-                if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_debug_entries(slint::ModelRc::from(&[slint::SharedString::from("Folder picker only on Android")]));
-                }
+    ui.on_browse_folder({
+        let app = app.clone();
+
+        move |_dummy| {
+            if let Err(err) = open_android_folder_picker(&app) {
+                eprintln!("Could not open folder picker: {err}");
             }
-        });
-    }
+        }
+    });
+
     ui
 }
 

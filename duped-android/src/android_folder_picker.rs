@@ -1,19 +1,29 @@
-use jni::objects::{JObject, JValue};
-use jni::JNIEnv;
+use jni::{
+    JNIEnv,
+    objects::{JObject, JValue},
+};
 
-/// Launches the Android folder picker (ACTION_OPEN_DOCUMENT_TREE)
-pub fn open_folder_picker(env: &JNIEnv, context: JObject) {
-    let intent_class = env.find_class("android/content/Intent").unwrap();
-    let action = env.new_string("android.intent.action.OPEN_DOCUMENT_TREE").unwrap();
+pub const FOLDER_PICKER_REQUEST_CODE: i32 = 42;
+
+/// Launches Android's directory picker.
+pub fn open_folder_picker(env: &mut JNIEnv<'_>, activity: &JObject<'_>) -> jni::errors::Result<()> {
+    let action = env.new_string("android.intent.action.OPEN_DOCUMENT_TREE")?;
+
     let intent = env.new_object(
-        intent_class,
+        "android/content/Intent",
         "(Ljava/lang/String;)V",
-        &[JValue::from(action)],
-    ).unwrap();
+        &[JValue::Object(action.as_ref())],
+    )?;
+
     env.call_method(
-        context,
+        activity,
         "startActivityForResult",
         "(Landroid/content/Intent;I)V",
-        &[intent.into(), JValue::from(42)], // 42 = request code
-    ).unwrap();
+        &[
+            JValue::Object(&intent),
+            JValue::Int(FOLDER_PICKER_REQUEST_CODE),
+        ],
+    )?;
+
+    Ok(())
 }
