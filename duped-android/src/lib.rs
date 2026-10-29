@@ -9,7 +9,7 @@ mod android_permissions;
 
 slint::include_modules!();
 
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model};
 
 use std::sync::{
     Arc, OnceLock,
@@ -378,8 +378,8 @@ pub extern "system" fn duped_on_folder_picker_result(
     // SAFETY: `data` is a local JNI reference owned by this callback.
     let data = unsafe { jni::objects::JObject::from_raw(data) };
 
-    let picked = env.with_local_frame(16, |env| {
-        activity_result::handle_folder_picker_result(env, data)
+    let picked = env.with_local_frame(16, |env| -> jni::errors::Result<_> {
+        Ok(activity_result::handle_folder_picker_result(env, data))
     });
 
     let picked = match picked {
