@@ -1,6 +1,7 @@
 #[cfg(target_os = "android")]
 mod android_permissions;
 mod android_folder_picker;
+mod activity_result;
 
 slint::include_modules!();
 
