@@ -1,3 +1,4 @@
+mod android_permissions;
 slint::include_modules!();
 
 use std::sync::{
@@ -184,6 +185,28 @@ fn ui() -> MainWindow {
             cancel_flag.store(true, Ordering::Relaxed);
         }
     });
+    // Set permission property on startup
+    #[cfg(target_os = "android")]
+    {
+        use jni::JNIEnv;
+        use slint::android::android_activity;
+        let activity = android_activity();
+        let env = unsafe { JNIEnv::from_raw(slint::android::jni_env()) }.unwrap();
+        let has_perm = crate::android_permissions::has_all_files_access(&env, activity);
+        ui.set_all_files_access(has_perm);
+    }
+
+    // Wire up permission request button
+    #[cfg(target_os = "android")]
+    {
+        use jni::JNIEnv;
+        use slint::android::android_activity;
+        let activity = android_activity();
+        ui.on_request_all_files_access(move || {
+            let env = unsafe { JNIEnv::from_raw(slint::android::jni_env()) }.unwrap();
+            crate::android_permissions::request_all_files_access(&env, activity);
+        });
+    }
     ui
 }
 
