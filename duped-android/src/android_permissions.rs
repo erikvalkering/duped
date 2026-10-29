@@ -1,77 +1,82 @@
-use jni::objects::{JObject, JString};
-use jni::JNIEnv;
-use jni::sys::jboolean;
+use jni::{
+    JNIEnv,
+    objects::{JObject, JValue},
+};
 
-/// Checks if MANAGE_EXTERNAL_STORAGE is granted
-pub fn has_all_files_access(env: &JNIEnv, context: JObject) -> bool {
-    let activity = context;
-    let package_manager = env
-        .call_method(activity, "getPackageManager", "()Landroid/content/pm/PackageManager;", &[])
-        .unwrap()
-        .l()
-        .unwrap();
-    let package_name = env
-        .call_method(activity, "getPackageName", "()Ljava/lang/String;", &[])
-        .unwrap()
-        .l()
-        .unwrap();
-    let permission = env.new_string("android.permission.MANAGE_EXTERNAL_STORAGE").unwrap();
-    let result = env
-        .call_method(
-            package_manager,
-            "checkPermission",
-            "(Ljava/lang/String;Ljava/lang/String;)I",
-            &[permission.into(), package_name.into()],
-        )
-        .unwrap()
+fn sdk_version(env: &mut JNIEnv<'_>) -> jni::errors::Result<i32> {
+    env.get_static_field("android/os/Build$VERSION", "SDK_INT", "I")?
         .i()
-        .unwrap();
-    // PERMISSION_GRANTED = 0
-    if result == 0 {
-        // For Android 11+, must also check Environment.isExternalStorageManager()
-        let env_class = env.find_class("android/os/Environment").unwrap();
-        let is_mgr = env
-            .call_static_method(env_class, "isExternalStorageManager", "()Z", &[])
-            .unwrap()
-            .z()
-            .unwrap();
-        is_mgr
-    } else {
-        false
-    }
 }
 
-/// Opens the settings page for MANAGE_EXTERNAL_STORAGE
-pub fn request_all_files_access(env: &JNIEnv, context: JObject) {
-    let intent_action = env.new_string("android.settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION").unwrap();
-    let uri_class = env.find_class("android/net/Uri").unwrap();
-    let package_name = env.call_method(context, "getPackageName", "()Ljava/lang/String;", &[]).unwrap().l().unwrap();
-    let uri = env.call_static_method(
-        uri_class,
-        "fromParts",
-        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Landroid/net/Uri;",
-        &[
-            JString::from(env.new_string("package").unwrap()).into(),
-            package_name.into(),
-            JObject::null().into(),
-        ],
-    ).unwrap().l().unwrap();
-    let intent_class = env.find_class("android/content/Intent").unwrap();
+/// Whether Android 11+ all-files access is currently enabled.
+///
+/// Android 10 does not have this permission, so this returns false there.
+pub fn has_all_files_access(env: &mut JNIEnv<'_>) -> jni::errors::Result<bool> {
+    if sdk_version(env)? < 30 {
+        return Ok(false);
+    }
+
+    env.call_static_method(
+        "android/os/Environment",
+        "isExternalStorageManager",
+        "()Z",
+        &[],
+    )?
+    .z()
+}
+
+/// Opens the app-specific all-files-access settings page.
+///
+/// This opens Settings; it does not itself grant permission.
+pub fn request_all_files_access(
+    env: &mut JNIEnv<'_>,
+    activity: &JObject<'_>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if sdk_version(env)? < 30 {
+        return Err("All-files access requires Android 11 (API 30) or newer".into());
+    }
+
+    let package_name = env
+        .call_method(activity, "getPackageName", "()Ljava/lang/String;", &[])?
+        .l()?;
+
+    let scheme = env.new_string("package")?;
+    let null = JObject::null();
+
+    let uri = env
+        .call_static_method(
+            "android/net/Uri",
+            "fromParts",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Landroid/net/Uri;",
+            &[
+                JValue::Object(scheme.as_ref()),
+                JValue::Object(&package_name),
+                JValue::Object(&null),
+            ],
+        )?
+        .l()?;
+
+    let action = env.new_string("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")?;
+
     let intent = env.new_object(
-        intent_class,
+        "android/content/Intent",
         "(Ljava/lang/String;)V",
-        &[JString::from(intent_action).into()],
-    ).unwrap();
+        &[JValue::Object(action.as_ref())],
+    )?;
+
     env.call_method(
-        intent,
+        &intent,
         "setData",
         "(Landroid/net/Uri;)Landroid/content/Intent;",
-        &[uri.into()],
-    ).unwrap();
+        &[JValue::Object(&uri)],
+    )?;
+
     env.call_method(
-        context,
+        activity,
         "startActivity",
         "(Landroid/content/Intent;)V",
-        &[intent.into()],
-    ).unwrap();
+        &[JValue::Object(&intent)],
+    )?;
+
+    Ok(())
 }
