@@ -1,5 +1,6 @@
 #[cfg(target_os = "android")]
 mod android_permissions;
+mod android_folder_picker;
 
 slint::include_modules!();
 
@@ -257,14 +258,27 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
     });
 
     // Folder picker button
-    ui.on_browse_folder({
-        let ui_weak = ui.as_weak();
-        move |_dummy| {
-            if let Some(ui) = ui_weak.upgrade() {
-                ui.set_debug_entries(slint::ModelRc::from(&[slint::SharedString::from("Folder picker not yet implemented")]));
+    #[cfg(target_os = "android")]
+    {
+        use jni::JNIEnv;
+        use slint::android::android_activity;
+        let activity = android_activity();
+        ui.on_browse_folder(move |_dummy| {
+            let env = unsafe { JNIEnv::from_raw(slint::android::jni_env()) }.unwrap();
+            crate::android_folder_picker::open_folder_picker(&env, activity);
+        });
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        ui.on_browse_folder({
+            let ui_weak = ui.as_weak();
+            move |_dummy| {
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_debug_entries(slint::ModelRc::from(&[slint::SharedString::from("Folder picker only on Android")]));
+                }
             }
-        }
-    });
+        });
+    }
     ui
 }
 
