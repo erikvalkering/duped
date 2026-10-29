@@ -9,8 +9,6 @@ fn sdk_version(env: &mut JNIEnv<'_>) -> jni::errors::Result<i32> {
 }
 
 /// Whether Android 11+ all-files access is currently enabled.
-///
-/// Android 10 does not have this permission, so this returns false there.
 pub fn has_all_files_access(env: &mut JNIEnv<'_>) -> jni::errors::Result<bool> {
     if sdk_version(env)? < 30 {
         return Ok(false);
@@ -26,8 +24,6 @@ pub fn has_all_files_access(env: &mut JNIEnv<'_>) -> jni::errors::Result<bool> {
 }
 
 /// Opens the app-specific all-files-access settings page.
-///
-/// This opens Settings; it does not itself grant permission.
 pub fn request_all_files_access(
     env: &mut JNIEnv<'_>,
     activity: &JObject<'_>,

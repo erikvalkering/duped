@@ -6,5 +6,6 @@ fn main() {
                 .join("material-1.1.0/material.slint"),
         )]),
     );
+
     slint_build::compile_with_config("ui/main.slint", config).unwrap();
 }

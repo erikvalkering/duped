@@ -19,17 +19,22 @@ package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
 resources = "res"
 
+# IMPORTANT: verify the exact Java-source metadata key required by your
+# installed cargo-apk2 version. This directory must contain
+# java/com/example/duped/MainActivity.java.
+java_sources = "java"
+
 [package.metadata.android.sdk]
 min_sdk_version = 29
 target_sdk_version = 35
 
 [package.metadata.android.application]
-has_code = false
+has_code = true
 label = "Duped"
 icon = "@mipmap/ic_launcher"
 
 [[package.metadata.android.application.activity]]
-name = "android.app.NativeActivity"
+name = "com.example.duped.MainActivity"
 exported = true
 
 [[package.metadata.android.application.activity.meta_data]]
@@ -42,3 +47,4 @@ categories = ["android.intent.category.LAUNCHER"]
 
 [[package.metadata.android.uses_permission]]
 name = "android.permission.MANAGE_EXTERNAL_STORAGE"
+
