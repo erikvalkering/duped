@@ -172,6 +172,10 @@ fn start_scan(
         let result = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 kind.set_scanning(&ui, false);
+                // Reset browsing_folder after picked scan completes
+                if let ScanKind::Picked = kind {
+                    ui.set_browsing_folder(false);
+                }
             }
 
             scan_running_done.store(false, Ordering::Relaxed);
