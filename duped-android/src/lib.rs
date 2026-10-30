@@ -137,7 +137,6 @@ fn start_scan(
                         files_update = Some(files.clone());
                     }
                 }
-
                 Err(err) => {
                     debug_entries.push(format!("[ERR] {err}"));
                 }
@@ -300,7 +299,6 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
         Ok(granted) => {
             ui.set_all_files_access(granted);
         }
-
         Err(err) => {
             eprintln!("Could not check all-files access: {err}");
             ui.set_all_files_access(false);
@@ -406,20 +404,36 @@ pub extern "system" fn duped_on_folder_picker_result(
 
     append_debug_entry(format!("[PICKED PATH] {local_path}"));
 
-    let Some(ui_weak) = MAIN_WINDOW.get() else {
-        return;
-    };
+    if let Err(err) = slint::invoke_from_event_loop(move || {
+        let Some(ui_weak) = MAIN_WINDOW.get() else {
+            return;
+        };
 
-    let cancel_flag = Arc::new(AtomicBool::new(false));
-    let scan_running = Arc::new(AtomicBool::new(false));
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let scan_running = Arc::new(AtomicBool::new(false));
 
-    start_scan(
-        ui_weak,
-        cancel_flag,
-        scan_running,
-        ScanKind::Picked,
-        local_path,
-    );
+        start_scan(
+            ui_weak,
+            cancel_flag,
+            scan_running,
+            ScanKind::Picked,
+            local_path,
+        );
+    }) {
+        eprintln!("Could not schedule picked-folder scan: {err}");
+    }
+}
+
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_example_duped_MainActivity_nativeOnActivityResult(
+    _env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    request_code: jni::sys::jint,
+    result_code: jni::sys::jint,
+    data: jni::objects::JObject<'_>,
+) {
+    duped_on_folder_picker_result(request_code, result_code, data.into_raw());
 }
 
 #[cfg(target_os = "android")]
@@ -449,7 +463,6 @@ fn android_main(app: slint::android::AndroidApp) {
                     Ok(granted) => {
                         ui.set_all_files_access(granted);
                     }
-
                     Err(err) => {
                         eprintln!("Could not refresh all-files access: {err}");
                     }

@@ -20,8 +20,8 @@ package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
 resources = "res"
 
-# IMPORTANT: confirm the exact Java-source metadata key required by your
-# installed cargo-apk2 version. This directory must contain
+# Confirm the exact Java-source metadata key required by your installed
+# cargo-apk2 version. This directory must contain
 # java/com/example/duped/MainActivity.java.
 java_sources = "java"
 
