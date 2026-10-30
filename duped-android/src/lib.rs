@@ -40,7 +40,7 @@ impl ScanKind {
                 ui.set_scanning_documents(scanning);
             }
             Self::Root => {
-                ui.set_scanning_root(scanning);
+
             }
             Self::Picked => {}
         }
@@ -275,21 +275,6 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
         }
     });
 
-    ui.on_scan_root({
-        let ui_weak = ui_weak.clone();
-        let cancel_flag = cancel_flag.clone();
-        let scan_running = scan_running.clone();
-
-        move || {
-            start_scan(
-                &ui_weak,
-                cancel_flag.clone(),
-                scan_running.clone(),
-                ScanKind::Root,
-                "/".to_string(),
-            );
-        }
-    });
 
     ui.on_cancel_scan({
         let cancel_flag = cancel_flag.clone();

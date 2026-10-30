@@ -9,12 +9,12 @@ import {
 export component MainWindow inherits MaterialWindow {
     callback scan_downloads();
     callback scan_documents();
-    callback scan_root();
+
     callback browse_folder(string);
     callback cancel_scan();
     callback request_all_files_access();
     in-out property <bool> scanning_documents: false;
-    in-out property <bool> scanning_root: false;
+
     in-out property <bool> scanning_downloads: false;
     in-out property <int> files_count: 0;
     in-out property <[string]> files_list: [];
@@ -119,17 +119,7 @@ export component MainWindow inherits MaterialWindow {
             }
         }
     }
-    FilledButton {
-        text: scanning_root ? "Cancel" : "Scan Root";
-        enabled: !scanning_downloads && !scanning_documents;
-        clicked => {
-            if (scanning_root) {
-                cancel_scan();
-            } else {
-                scan_root();
-            }
-        }
-    }
+
     Flickable {
         width: parent.width - 32px;
         height: 180px;
