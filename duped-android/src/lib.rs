@@ -289,9 +289,13 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
 
     ui.on_cancel_scan({
         let cancel_flag = cancel_flag.clone();
+        let ui_weak = ui_weak.clone();
 
         move || {
             cancel_flag.store(true, Ordering::Relaxed);
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_browsing_folder(false);
+            }
         }
     });
 
@@ -317,11 +321,18 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
 
     ui.on_browse_folder({
         let app = app.clone();
+        let ui_weak = ui_weak.clone();
 
         move |_dummy| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_browsing_folder(true);
+            }
             if let Err(err) = open_android_folder_picker(&app) {
                 eprintln!("Could not open folder picker: {err}");
                 append_debug_entry(format!("[PICKER ERROR] {err}"));
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_browsing_folder(false);
+                }
             }
         }
     });
@@ -344,16 +355,25 @@ pub extern "system" fn duped_on_folder_picker_result(
 
     if result_code != RESULT_OK {
         append_debug_entry("[PICKED] Folder selection cancelled".to_string());
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
         return;
     }
 
     if data.is_null() {
         append_debug_entry("[PICKED] No folder URI returned".to_string());
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
         return;
     }
 
     let Some(app) = ANDROID_APP.get() else {
         append_debug_entry("[PICKER ERROR] Android app not initialized".to_string());
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
         return;
     };
 
@@ -362,6 +382,9 @@ pub extern "system" fn duped_on_folder_picker_result(
 
     let Ok(vm) = vm else {
         append_debug_entry("[PICKER ERROR] Could not obtain JavaVM".to_string());
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
         return;
     };
 

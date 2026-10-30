@@ -20,6 +20,7 @@ export component MainWindow inherits MaterialWindow {
     in-out property <[string]> files_list: [];
     in-out property <[string]> debug_entries: [];
     in-out property <bool> all_files_access: false;
+    in-out property <bool> browsing_folder: false;
 
     property <bool> drawer-open: false;
     property <length> drawer-width: 320px;
@@ -107,11 +108,15 @@ export component MainWindow inherits MaterialWindow {
         }
     }
     FilledButton {
-        text: "Browse Folder...";
+        text: browsing_folder ? "Cancel" : "Browse Folder...";
         enabled: !scanning_downloads && !scanning_documents && !scanning_root;
         clicked => {
-            // Open folder picker (handled in Rust)
-            browse_folder("");
+            if (browsing_folder) {
+                cancel_scan();
+            } else {
+                browsing_folder = true;
+                browse_folder("");
+            }
         }
     }
     FilledButton {
