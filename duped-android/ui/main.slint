@@ -7,6 +7,8 @@ import {
 } from "@material";
 
 export component MainWindow inherits MaterialWindow {
+    in-out property <bool> show_found_files: true;
+    in-out property <bool> enable_debug_logging: false;
     callback scan_downloads();
     callback scan_documents();
 
@@ -75,6 +77,20 @@ export component MainWindow inherits MaterialWindow {
     width: parent.width;
     height: parent.height;
     alignment: center;
+
+    HorizontalLayout {
+        spacing: 24px;
+        CheckBox {
+            checked: show_found_files;
+            text: "Show found files in list";
+            on_toggled => show_found_files = !show_found_files;
+        }
+        CheckBox {
+            checked: enable_debug_logging;
+            text: "Enable debug logging";
+            on_toggled => enable_debug_logging = !enable_debug_logging;
+        }
+    }
     
     Text {
         text: "Files found: " + files_count;

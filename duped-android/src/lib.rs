@@ -86,6 +86,17 @@ fn start_scan(
     kind: ScanKind,
     path: String,
 ) {
+    // Read UI toggles for controlling file list and debug logging
+    let (show_found_files, enable_debug_logging) = {
+        let mut show_found_files = true;
+        let mut enable_debug_logging = false;
+        if let Some(ui) = ui_weak.upgrade() {
+            show_found_files = ui.get_show_found_files();
+            enable_debug_logging = ui.get_enable_debug_logging();
+        }
+        (show_found_files, enable_debug_logging)
+    };
+
     // Only one scan may run at a time.
     if scan_running
         .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
@@ -113,6 +124,7 @@ fn start_scan(
         let mut files: Vec<String> = Vec::new();
         let mut debug_entries: Vec<String> = Vec::new();
 
+        let scan_start = std::time::Instant::now();
         for entry in walkdir::WalkDir::new(&path) {
             if cancel_flag.load(Ordering::Relaxed) {
                 break;
@@ -130,15 +142,19 @@ fn start_scan(
                         "[?]"
                     };
 
-                    debug_entries.push(format!("{} {}", entry_type, entry.path().display(),));
+                    if enable_debug_logging {
+    debug_entries.push(format!("{} {}", entry_type, entry.path().display()));
+}
 
-                    if entry.file_type().is_file() {
+                    if entry.file_type().is_file() && show_found_files {
                         files.push(entry.path().display().to_string());
                         files_update = Some(files.clone());
                     }
                 }
                 Err(err) => {
-                    debug_entries.push(format!("[ERR] {err}"));
+                    if enable_debug_logging {
+    debug_entries.push(format!("[ERR] {err}"));
+}
                 }
             }
 
@@ -169,6 +185,7 @@ fn start_scan(
 
         let scan_running_done = scan_running.clone();
 
+        let elapsed = scan_start.elapsed();
         let result = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 kind.set_scanning(&ui, false);
@@ -176,8 +193,17 @@ fn start_scan(
                 if let ScanKind::Picked = kind {
                     ui.set_browsing_folder(false);
                 }
+                // Always show scan time in debug list
+                let mut entries: Vec<slint::SharedString> = Vec::new();
+                let model = ui.get_debug_entries();
+                for index in 0..model.row_count() {
+                    if let Some(value) = model.row_data(index) {
+                        entries.push(value);
+                    }
+                }
+                entries.push(slint::SharedString::from(format!("[SCAN TIME] {:.2?}", elapsed)));
+                ui.set_debug_entries(slint::ModelRc::new(slint::VecModel::from(entries)));
             }
-
             scan_running_done.store(false, Ordering::Relaxed);
         });
 
