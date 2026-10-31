@@ -80,12 +80,12 @@ export component MainWindow inherits MaterialWindow {
 
     HorizontalLayout {
         spacing: 24px;
-        CheckBox {
+        ToggleSwitch {
             checked: show_found_files;
             text: "Show found files in list";
             on_toggled => { show_found_files = !show_found_files; }
         }
-        CheckBox {
+        ToggleSwitch {
             checked: enable_debug_logging;
             text: "Enable debug logging";
             on_toggled => { enable_debug_logging = !enable_debug_logging; }
