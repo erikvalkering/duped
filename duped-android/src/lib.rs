@@ -142,13 +142,26 @@ fn start_scan(
                         "[?]"
                     };
 
-                    if enable_debug_logging {
-    debug_entries.push(format!("{} {}", entry_type, entry.path().display()));
-}
+                    
 
-                    if entry.file_type().is_file() && show_found_files {
-                        files.push(entry.path().display().to_string());
-                        files_update = Some(files.clone());
+                    if entry.file_type().is_file() {
+                        if show_found_files {
+                            files.push(entry.path().display().to_string());
+                            files_update = Some(files.clone());
+                        }
+                        // Always update the file count, even if not showing files
+                        let count = if show_found_files {
+                            files.len().min(i32::MAX as usize) as i32
+                        } else {
+                            let Some(ui) = ui_weak.clone().upgrade() else { 0 };
+                            let prev = ui.get_files_count();
+                            prev + 1
+                        };
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.clone().upgrade() {
+                                ui.set_files_count(count);
+                            }
+                        });
                     }
                 }
                 Err(err) => {
