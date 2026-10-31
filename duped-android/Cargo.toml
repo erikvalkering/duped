@@ -19,6 +19,7 @@ slint-build = { version = "1.18" }
 package = "com.example.duped"
 build_targets = ["aarch64-linux-android"]
 resources = "res"
+manifest_override = "AndroidManifest.xml"
 
 # Confirm the exact Java-source metadata key required by your installed
 # cargo-apk2 version. This directory must contain

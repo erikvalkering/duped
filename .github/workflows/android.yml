@@ -150,6 +150,64 @@ jobs:
           key_alias = "${SIGNING_KEY_ALIAS}"
           EOF
 
+      - name: Generate explicit Android manifest
+        working-directory: duped-android
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import tomllib
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          android = "http://schemas.android.com/apk/res/android"
+          ET.register_namespace("android", android)
+          def a(name):
+              return "{" + android + "}" + name
+
+          config = tomllib.loads(Path("Cargo.toml").read_text())
+          version = config["package"]["version"]
+          major, minor, patch = map(int, version.split("."))
+          # Offset the existing workflow's mapping above the published 0.0.108 code.
+          version_code = 16777216 + major * 1000000 + minor * 1000 + patch + 1
+          if not 1 <= version_code <= 2100000000:
+              raise SystemExit("Android versionCode out of range")
+
+          manifest = ET.Element("manifest", {
+              "package": config["package"]["metadata"]["android"]["package"],
+              a("versionCode"): str(version_code),
+              a("versionName"): version,
+          })
+          ET.SubElement(manifest, "uses-sdk", {
+              a("minSdkVersion"): "29", a("targetSdkVersion"): "35",
+          })
+          ET.SubElement(manifest, "uses-permission", {
+              a("name"): "android.permission.MANAGE_EXTERNAL_STORAGE",
+          })
+          app = ET.SubElement(manifest, "application", {
+              a("label"): "Duped",
+              a("icon"): "@mipmap/ic_launcher",
+              a("hasCode"): "true",
+              a("debuggable"): "false",
+          })
+          activity = ET.SubElement(app, "activity", {
+              a("name"): manifest.attrib["package"] + ".MainActivity",
+              a("exported"): "true",
+              a("configChanges"): "orientation|keyboardHidden|screenSize",
+          })
+          ET.SubElement(activity, "meta-data", {
+              a("name"): "android.app.lib_name", a("value"): "duped_android",
+          })
+          intent = ET.SubElement(activity, "intent-filter")
+          ET.SubElement(intent, "action", {a("name"): "android.intent.action.MAIN"})
+          ET.SubElement(intent, "category", {a("name"): "android.intent.category.LAUNCHER"})
+          ET.indent(manifest)
+          ET.ElementTree(manifest).write(
+              "AndroidManifest.xml", encoding="utf-8", xml_declaration=True
+          )
+          print(Path("AndroidManifest.xml").read_text())
+          PY
+
       - name: Build signed release APK
         working-directory: duped-android
         shell: bash
