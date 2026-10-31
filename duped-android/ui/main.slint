@@ -87,7 +87,7 @@ export component MainWindow inherits MaterialWindow {
     }
     FilledButton {
         text: scanning_downloads ? "Cancel" : "Scan Downloads";
-        enabled: !scanning_documents && !scanning_root;
+        enabled: !scanning_documents;
         clicked => {
             if (scanning_downloads) {
                 cancel_scan();
@@ -98,7 +98,7 @@ export component MainWindow inherits MaterialWindow {
     }
     FilledButton {
         text: scanning_documents ? "Cancel" : "Scan Documents";
-        enabled: !scanning_downloads && !scanning_root;
+        enabled: !scanning_downloads;
         clicked => {
             if (scanning_documents) {
                 cancel_scan();
@@ -109,7 +109,7 @@ export component MainWindow inherits MaterialWindow {
     }
     FilledButton {
         text: browsing_folder ? "Cancel" : "Browse Folder...";
-        enabled: !scanning_downloads && !scanning_documents && !scanning_root;
+        enabled: !scanning_downloads && !scanning_documents;
         clicked => {
             if (browsing_folder) {
                 cancel_scan();
