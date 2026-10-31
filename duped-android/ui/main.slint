@@ -83,12 +83,12 @@ export component MainWindow inherits MaterialWindow {
         CheckBox {
             checked: show_found_files;
             text: "Show found files in list";
-            on_toggled => show_found_files = !show_found_files;
+            on_toggled => { show_found_files = !show_found_files; }
         }
         CheckBox {
             checked: enable_debug_logging;
             text: "Enable debug logging";
-            on_toggled => enable_debug_logging = !enable_debug_logging;
+            on_toggled => { enable_debug_logging = !enable_debug_logging; }
         }
     }
     
