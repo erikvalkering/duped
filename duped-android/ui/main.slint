@@ -4,6 +4,7 @@ import {
     FilledButton,
     IconButton,
     MaterialPalette,
+    Switch,
 } from "@material";
 
 export component MainWindow inherits MaterialWindow {
@@ -73,104 +74,135 @@ export component MainWindow inherits MaterialWindow {
             background: transparent;
 
             VerticalLayout {
-    spacing: 16px;
-    width: parent.width;
-    height: parent.height;
-    alignment: center;
+                spacing: 16px;
+                width: parent.width;
+                height: parent.height;
+                alignment: center;
 
-    HorizontalLayout {
-        spacing: 24px;
-        Switch {
-            checked: show_found_files;
-            text: "Show found files in list";
-            on_toggled => { show_found_files = !show_found_files; }
-        }
-        Switch {
-            checked: enable_debug_logging;
-            text: "Enable debug logging";
-            on_toggled => { enable_debug_logging = !enable_debug_logging; }
-        }
-    }
-    
-    Text {
-        text: "Files found: " + files_count;
-        horizontal-alignment: center;
-    }
-    FilledButton {
-        text: all_files_access ? "All Files Access Granted" : "Request All Files Access";
-        enabled: !all_files_access;
-        clicked => request_all_files_access();
-    }
-    FilledButton {
-        text: scanning_downloads ? "Cancel" : "Scan Downloads";
-        enabled: !scanning_documents;
-        clicked => {
-            if (scanning_downloads) {
-                cancel_scan();
-            } else {
-                scan_downloads();
-            }
-        }
-    }
-    FilledButton {
-        text: scanning_documents ? "Cancel" : "Scan Documents";
-        enabled: !scanning_downloads;
-        clicked => {
-            if (scanning_documents) {
-                cancel_scan();
-            } else {
-                scan_documents();
-            }
-        }
-    }
-    FilledButton {
-        text: browsing_folder ? "Cancel" : "Browse Folder...";
-        enabled: !scanning_downloads && !scanning_documents;
-        clicked => {
-            if (browsing_folder) {
-                cancel_scan();
-            } else {
-                browsing_folder = true;
-                browse_folder("");
-            }
-        }
-    }
+                HorizontalLayout {
+                    spacing: 24px;
 
-    Flickable {
-        width: parent.width - 32px;
-        height: 180px;
-        content-height: files_list.length * 24px;
-        Rectangle {
-            width: parent.width - 32px;
-            height: files_list.length * 24px;
-            VerticalLayout {
-                for file in files_list : Text {
-                    text: file;
-                    font-size: 14px;
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "Show found files in list";
+                            vertical-alignment: center;
+                        }
+
+                        Switch {
+                            checked <=> root.show_found_files;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "Enable debug logging";
+                            vertical-alignment: center;
+                        }
+
+                        Switch {
+                            checked <=> root.enable_debug_logging;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Files found: " + files_count;
+                    horizontal-alignment: center;
+                }
+
+                FilledButton {
+                    text: all_files_access
+                        ? "All Files Access Granted"
+                        : "Request All Files Access";
+                    enabled: !all_files_access;
+                    clicked => request_all_files_access();
+                }
+
+                FilledButton {
+                    text: scanning_downloads ? "Cancel" : "Scan Downloads";
+                    enabled: !scanning_documents;
+
+                    clicked => {
+                        if (scanning_downloads) {
+                            cancel_scan();
+                        } else {
+                            scan_downloads();
+                        }
+                    }
+                }
+
+                FilledButton {
+                    text: scanning_documents ? "Cancel" : "Scan Documents";
+                    enabled: !scanning_downloads;
+
+                    clicked => {
+                        if (scanning_documents) {
+                            cancel_scan();
+                        } else {
+                            scan_documents();
+                        }
+                    }
+                }
+
+                FilledButton {
+                    text: browsing_folder ? "Cancel" : "Browse Folder...";
+                    enabled: !scanning_downloads && !scanning_documents;
+
+                    clicked => {
+                        if (browsing_folder) {
+                            cancel_scan();
+                        } else {
+                            browsing_folder = true;
+                            browse_folder("");
+                        }
+                    }
+                }
+
+                Flickable {
+                    width: parent.width - 32px;
+                    height: 180px;
+                    content-height: files_list.length * 24px;
+
+                    Rectangle {
+                        width: parent.width - 32px;
+                        height: files_list.length * 24px;
+
+                        VerticalLayout {
+                            for file in files_list : Text {
+                                text: file;
+                                font-size: 14px;
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Debug: All entries (files and dirs)";
+                    horizontal-alignment: center;
+                }
+
+                Flickable {
+                    width: parent.width - 32px;
+                    height: 120px;
+                    content-height: debug_entries.length * 24px;
+
+                    Rectangle {
+                        width: parent.width - 32px;
+                        height: debug_entries.length * 24px;
+
+                        VerticalLayout {
+                            for entry in debug_entries : Text {
+                                text: entry;
+                                font-size: 12px;
+                            }
+                        }
+                    }
                 }
             }
-        }
-    }
-    Text {
-        text: "Debug: All entries (files and dirs)";
-        horizontal-alignment: center;
-    }
-    Flickable {
-        width: parent.width - 32px;
-        height: 120px;
-        content-height: debug_entries.length * 24px;
-        Rectangle {
-            width: parent.width - 32px;
-            height: debug_entries.length * 24px;
-            VerticalLayout {
-                for entry in debug_entries : Text {
-                    text: entry;
-                    font-size: 12px;
-                }
-            }
-        }
-    }
-}
         }
     }
 
