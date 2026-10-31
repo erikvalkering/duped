@@ -1,378 +1,554 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
-use std::io::{Read, Seek};
+#[cfg(target_os = "android")]
+mod activity_result;
 
-// #[cfg(test)]
-pub mod test_utils;
+#[cfg(target_os = "android")]
+mod android_folder_picker;
 
-/// Iterator-based scan strategy: returns a boxed iterator producing PathBufs.
-/// Implementations should strive to avoid per-file heap allocations where possible.
-pub trait ScanStrategy {
-    fn name(&self) -> &'static str;
+#[cfg(target_os = "android")]
+mod android_permissions;
 
-    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a>;
+slint::include_modules!();
+
+use slint::{ComponentHandle, Model};
+
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, OnceLock,
+};
+
+#[cfg(target_os = "android")]
+static ANDROID_APP: OnceLock<slint::android::AndroidApp> = OnceLock::new();
+
+#[cfg(target_os = "android")]
+static MAIN_WINDOW: OnceLock<slint::Weak<MainWindow>> = OnceLock::new();
+
+#[derive(Clone, Copy)]
+enum ScanKind {
+    Downloads,
+    Documents,
+    Root,
+    Picked,
 }
 
-pub struct StdFsStrategy;
-
-struct StdFsIter {
-    stack: Vec<PathBuf>,
-}
-
-impl StdFsIter {
-    fn new(root: &Path) -> Self {
-        StdFsIter {
-            stack: vec![root.to_path_buf()],
+impl ScanKind {
+    fn set_scanning(self, ui: &MainWindow, scanning: bool) {
+        match self {
+            Self::Downloads => {
+                ui.set_scanning_downloads(scanning);
+            }
+            Self::Documents => {
+                ui.set_scanning_documents(scanning);
+            }
+            Self::Root => {}
+            Self::Picked => {}
         }
     }
 }
 
-impl Iterator for StdFsIter {
-    type Item = PathBuf;
+fn string_model(values: Vec<String>) -> slint::ModelRc<slint::SharedString> {
+    let values: Vec<slint::SharedString> =
+        values.into_iter().map(slint::SharedString::from).collect();
 
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(path) = self.stack.pop() {
-            match std::fs::metadata(&path) {
-                Ok(meta) => {
-                    if meta.is_file() {
-                        return Some(path);
-                    } else if meta.is_dir() {
-                        // Read entries and push them onto the stack
-                        match fs::read_dir(&path) {
-                            Ok(entries) => {
-                                // Collect entries into a small vector then push to stack
-                                let mut v = Vec::new();
-                                for e in entries.filter_map(|e| e.ok()) {
-                                    v.push(e.path());
-                                }
-                                // push in reverse so the iterator is depth-first left-to-right
-                                for p in v.into_iter().rev() {
-                                    self.stack.push(p);
-                                }
+    slint::ModelRc::new(slint::VecModel::from(values))
+}
+
+fn append_debug_entry(message: String) {
+    let _ = slint::invoke_from_event_loop(move || {
+        let Some(ui_weak) = MAIN_WINDOW.get() else {
+            return;
+        };
+
+        let Some(ui) = ui_weak.upgrade() else {
+            return;
+        };
+
+        let mut entries: Vec<slint::SharedString> = Vec::new();
+        let model = ui.get_debug_entries();
+
+        for index in 0..model.row_count() {
+            if let Some(value) = model.row_data(index) {
+                entries.push(value);
+            }
+        }
+
+        entries.push(slint::SharedString::from(message));
+
+        ui.set_debug_entries(slint::ModelRc::new(slint::VecModel::from(entries)));
+    });
+}
+
+fn start_scan(
+    ui_weak: &slint::Weak<MainWindow>,
+    cancel_flag: Arc<AtomicBool>,
+    scan_running: Arc<AtomicBool>,
+    kind: ScanKind,
+    path: String,
+) {
+    // Read UI toggles for controlling file list and debug logging
+    let (show_found_files, enable_debug_logging) = {
+        let mut show_found_files = true;
+        let mut enable_debug_logging = false;
+
+        if let Some(ui) = ui_weak.upgrade() {
+            show_found_files = ui.get_show_found_files();
+            enable_debug_logging = ui.get_enable_debug_logging();
+        }
+
+        (show_found_files, enable_debug_logging)
+    };
+
+    // Only one scan may run at a time.
+    if scan_running
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_err()
+    {
+        return;
+    }
+
+    let Some(ui) = ui_weak.upgrade() else {
+        scan_running.store(false, Ordering::Relaxed);
+        return;
+    };
+
+    // A previous cancellation must not cancel the new scan.
+    cancel_flag.store(false, Ordering::Relaxed);
+
+    kind.set_scanning(&ui, true);
+    ui.set_files_count(0);
+    ui.set_files_list(string_model(Vec::new()));
+    ui.set_debug_entries(string_model(Vec::new()));
+
+    let ui_weak = ui_weak.clone();
+
+    std::thread::spawn(move || {
+        let mut files: Vec<String> = Vec::new();
+        let mut debug_entries: Vec<String> = Vec::new();
+
+        let scan_start = std::time::Instant::now();
+
+        for entry in walkdir::WalkDir::new(&path) {
+            if cancel_flag.load(Ordering::Relaxed) {
+                break;
+            }
+
+            let mut files_update = None;
+
+            match entry {
+                Ok(entry) => {
+                    let entry_type = if entry.file_type().is_file() {
+                        "[F]"
+                    } else if entry.file_type().is_dir() {
+                        "[D]"
+                    } else {
+                        "[?]"
+                    };
+
+                    if entry.file_type().is_file() {
+                        if show_found_files {
+                            files.push(entry.path().display().to_string());
+                            files_update = Some(files.clone());
+                        }
+
+                        // Always update the file count, even if not showing files
+                        let count = if show_found_files {
+                            files.len().min(i32::MAX as usize) as i32
+                        } else if let Some(ui) = ui_weak.clone().upgrade() {
+                            let prev = ui.get_files_count();
+                            prev + 1
+                        } else {
+                            0
+                        };
+
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.clone().upgrade() {
+                                ui.set_files_count(count);
                             }
-                            Err(e) => {
-                                eprintln!("Error reading directory {}: {}", path.display(), e);
-                                continue;
-                            }
-                        }
+                        });
                     }
-                    // symlinks and others are skipped
-                }
-                Err(e) => {
-                    eprintln!("Error reading metadata for {}: {}", path.display(), e);
-                    continue;
-                }
-            }
-        }
-        None
-    }
-}
 
-impl ScanStrategy for StdFsStrategy {
-    fn name(&self) -> &'static str {
-        "std::fs"
-    }
-
-    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
-        Box::new(StdFsIter::new(root))
-    }
-}
-
-pub struct WalkDirStrategy;
-
-impl ScanStrategy for WalkDirStrategy {
-    fn name(&self) -> &'static str {
-        "walkdir"
-    }
-
-    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
-        Box::new(
-            walkdir::WalkDir::new(root)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_file())
-                .map(|e| e.path().to_path_buf()),
-        )
-    }
-}
-
-pub struct IgnoreStrategy;
-
-impl ScanStrategy for IgnoreStrategy {
-    fn name(&self) -> &'static str {
-        "ignore"
-    }
-
-    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
-        Box::new(
-            ignore::WalkBuilder::new(root)
-                .hidden(false)
-                .git_ignore(false)
-                .build()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
-                .map(|e| e.path().to_path_buf()),
-        )
-    }
-}
-
-pub struct JwalkStrategy;
-
-impl ScanStrategy for JwalkStrategy {
-    fn name(&self) -> &'static str {
-        "jwalk"
-    }
-
-    fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
-        Box::new(jwalk::WalkDir::new(root)
-            .skip_hidden(false)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .map(|e| e.path().to_path_buf()))
-    }
-}
-
-/// Represents a group of duplicate files (all with the same content).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DuplicateGroup {
-    pub files: Vec<PathBuf>,
-    /// Size in bytes of each file (all duplicates have same size)
-    pub size_bytes: u64,
-}
-
-impl DuplicateGroup {
-    pub fn new(files: Vec<PathBuf>, size_bytes: u64) -> Self {
-        DuplicateGroup { files, size_bytes }
-    }
-
-    pub fn file_count(&self) -> usize {
-        self.files.len()
-    }
-
-    /// Total size of all duplicates in this group (size_bytes * count)
-    pub fn total_size(&self) -> u64 {
-        self.size_bytes * (self.file_count() as u64)
-    }
-}
-
-/// Strategy for detecting duplicate files.
-pub trait DeduplicateStrategy {
-    fn name(&self) -> &'static str;
-
-    /// Takes a vector of file paths and returns groups of duplicates.
-    /// Only returns groups with 2+ files (excludes unique files).
-    /// Files below min_size are skipped without reading their contents.
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>>;
-}
-
-/// Reference implementation: compares full file contents.
-pub struct FullContentStrategy;
-
-impl DeduplicateStrategy for FullContentStrategy {
-    fn name(&self) -> &'static str {
-        "full-content"
-    }
-
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
-        // First pass: get file sizes and filter early
-        let mut files_with_sizes: Vec<(PathBuf, u64)> = Vec::new();
-        
-        for path in files {
-            match fs::metadata(&path) {
-                Ok(metadata) => {
-                    let size = metadata.len();
-                    // Early filter: skip files below minimum size
-                    if let Some(min) = min_size {
-                        if size < min {
-                            continue;
-                        }
+                    if enable_debug_logging {
+                        debug_entries
+                            .push(format!("[SCAN] {entry_type} {}", entry.path().display()));
                     }
-                    files_with_sizes.push((path, size));
                 }
-                Err(e) => {
-                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
-                    continue;
-                }
-            }
-        }
-        
-        // Second pass: read and group by content
-        // Map: file contents -> list of (path, size) pairs with that content
-        let mut content_to_paths: HashMap<Vec<u8>, Vec<(PathBuf, u64)>> = HashMap::new();
-
-        for (path, size) in files_with_sizes {
-            match fs::read(&path) {
-                Ok(contents) => {
-                    content_to_paths
-                        .entry(contents)
-                        .or_insert_with(Vec::new)
-                        .push((path, size));
-                }
-                Err(e) => {
-                    eprintln!("Warning: Could not read file {}: {}", path.display(), e);
-                    continue;
-                }
-            }
-        }
-
-        // Filter to only groups with 2+ files (duplicates) and convert to DuplicateGroup
-        let duplicate_groups: Vec<DuplicateGroup> = content_to_paths
-            .into_values()
-            .filter(|group| group.len() >= 2)
-            .map(|group| {
-                // All files in the group have the same size (same content)
-                let size_bytes = group.get(0).map(|(_, size)| *size).unwrap_or(0);
-                let paths: Vec<PathBuf> = group.into_iter().map(|(path, _)| path).collect();
-                DuplicateGroup::new(paths, size_bytes)
-            })
-            .collect();
-
-        Ok(duplicate_groups)
-    }
-}
-
-/// Fast strategy: only groups files by size (no content comparison).
-/// Useful as a pre-filter to quickly identify potential duplicates.
-/// Note: files with the same size are NOT necessarily duplicates.
-pub struct SizeOnlyStrategy;
-
-impl DeduplicateStrategy for SizeOnlyStrategy {
-    fn name(&self) -> &'static str {
-        "size-only"
-    }
-
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
-        // Single pass: get file sizes and group by size
-        let mut size_to_paths: HashMap<u64, Vec<PathBuf>> = HashMap::new();
-
-        for path in files {
-            match fs::metadata(&path) {
-                Ok(metadata) => {
-                    let size = metadata.len();
-                    // Early filter: skip files below minimum size
-                    if let Some(min) = min_size {
-                        if size < min {
-                            continue;
-                        }
+                Err(err) => {
+                    if enable_debug_logging {
+                        debug_entries.push(format!("[ERR] {err}"));
                     }
-                    size_to_paths
-                        .entry(size)
-                        .or_insert_with(Vec::new)
-                        .push(path);
                 }
-                Err(e) => {
-                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
-                    continue;
+            }
+
+            let debug_update = debug_entries.clone();
+            let ui_weak_update = ui_weak.clone();
+
+            // Construct Slint models on the UI thread.
+            let result = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak_update.upgrade() else {
+                    return;
+                };
+
+                ui.set_debug_entries(string_model(debug_update));
+
+                if let Some(files) = files_update {
+                    let count = files.len().min(i32::MAX as usize) as i32;
+
+                    ui.set_files_count(count);
+                    ui.set_files_list(string_model(files));
                 }
+            });
+
+            // The event loop may have stopped during shutdown.
+            if result.is_err() {
+                break;
             }
         }
 
-        // Filter to only groups with 2+ files and convert to DuplicateGroup
-        let duplicate_groups: Vec<DuplicateGroup> = size_to_paths
-            .into_iter()
-            .filter(|(_, paths)| paths.len() >= 2)
-            .map(|(size, paths)| DuplicateGroup::new(paths, size))
-            .collect();
+        let scan_running_done = scan_running.clone();
 
-        Ok(duplicate_groups)
-    }
-}
+        let elapsed = scan_start.elapsed();
 
-/// Strategy: groups files by comparing first/last n bytes.
-/// This is faster than full-content comparison but more accurate than size-only.
-pub struct PartialContentStrategy {
-    bytes: i64,
-}
+        let result = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                kind.set_scanning(&ui, false);
 
-impl PartialContentStrategy {
-    pub fn new(bytes: i64) -> Self {
-        PartialContentStrategy { bytes }
-    }
-}
+                // Reset browsing_folder after picked scan completes
+                if let ScanKind::Picked = kind {
+                    ui.set_browsing_folder(false);
+                }
 
-impl DeduplicateStrategy for PartialContentStrategy {
-    fn name(&self) -> &'static str {
-        "partial-content"
-    }
+                // Always show scan time in debug list
+                let mut entries: Vec<slint::SharedString> = Vec::new();
+                let model = ui.get_debug_entries();
 
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
-        // First pass: get file sizes and metadata, filter early
-        let mut files_with_sizes: Vec<(PathBuf, u64)> = Vec::new();
-
-        for path in files {
-            match fs::metadata(&path) {
-                Ok(metadata) => {
-                    let size = metadata.len();
-                    // Early filter: skip files below minimum size
-                    if let Some(min) = min_size {
-                        if size < min {
-                            continue;
-                        }
+                for index in 0..model.row_count() {
+                    if let Some(value) = model.row_data(index) {
+                        entries.push(value);
                     }
-                    files_with_sizes.push((path, size));
                 }
-                Err(e) => {
-                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
-                    continue;
+
+                entries.push(slint::SharedString::from(format!(
+                    "[SCAN TIME] {:.2?}",
+                    elapsed
+                )));
+
+                ui.set_debug_entries(slint::ModelRc::new(slint::VecModel::from(entries)));
+            }
+
+            scan_running_done.store(false, Ordering::Relaxed);
+        });
+
+        if result.is_err() {
+            scan_running.store(false, Ordering::Relaxed);
+        }
+    });
+}
+
+#[cfg(target_os = "android")]
+fn check_all_files_access(app: &slint::android::AndroidApp) -> jni::errors::Result<bool> {
+    // SAFETY: AndroidApp supplies a valid JVM pointer.
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast())? };
+
+    let mut env = vm.attach_current_thread()?;
+
+    env.with_local_frame(16, |env| android_permissions::has_all_files_access(env))
+}
+
+#[cfg(target_os = "android")]
+fn open_all_files_access_settings(
+    app: &slint::android::AndroidApp,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // SAFETY: AndroidApp supplies a valid JVM pointer.
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast())? };
+
+    let mut env = vm.attach_current_thread()?;
+
+    env.with_local_frame(16, |env| -> Result<(), Box<dyn std::error::Error>> {
+        // SAFETY: AndroidApp supplies an unowned global
+        // reference. The app remains alive during this call.
+        // Do not delete it or wrap it in AutoLocal.
+        let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
+
+        android_permissions::request_all_files_access(env, &activity)
+    })
+}
+
+#[cfg(target_os = "android")]
+fn open_android_folder_picker(app: &slint::android::AndroidApp) -> jni::errors::Result<()> {
+    // SAFETY: AndroidApp supplies a valid JVM pointer.
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast())? };
+
+    let mut env = vm.attach_current_thread()?;
+
+    env.with_local_frame(16, |env| {
+        // SAFETY: AndroidApp supplies an unowned global reference.
+        // The app remains alive during this call.
+        // Do not delete it or wrap it in AutoLocal.
+        let activity = unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr().cast()) };
+
+        android_folder_picker::open_folder_picker(env, &activity)
+    })
+}
+
+#[cfg(target_os = "android")]
+fn ui(app: slint::android::AndroidApp) -> MainWindow {
+    let ui = MainWindow::new().unwrap();
+    let ui_weak = ui.as_weak();
+
+    let _ = MAIN_WINDOW.set(ui.as_weak());
+
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    let scan_running = Arc::new(AtomicBool::new(false));
+
+    ui.on_scan_downloads({
+        let ui_weak = ui_weak.clone();
+        let cancel_flag = cancel_flag.clone();
+        let scan_running = scan_running.clone();
+
+        move || {
+            start_scan(
+                &ui_weak,
+                cancel_flag.clone(),
+                scan_running.clone(),
+                ScanKind::Downloads,
+                "/storage/emulated/0/Download".to_string(),
+            );
+        }
+    });
+
+    ui.on_scan_documents({
+        let ui_weak = ui_weak.clone();
+        let cancel_flag = cancel_flag.clone();
+        let scan_running = scan_running.clone();
+
+        move || {
+            start_scan(
+                &ui_weak,
+                cancel_flag.clone(),
+                scan_running.clone(),
+                ScanKind::Documents,
+                "/storage/emulated/0/Documents".to_string(),
+            );
+        }
+    });
+
+    ui.on_cancel_scan({
+        let cancel_flag = cancel_flag.clone();
+        let ui_weak = ui_weak.clone();
+
+        move || {
+            cancel_flag.store(true, Ordering::Relaxed);
+
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_browsing_folder(false);
+            }
+        }
+    });
+
+    match check_all_files_access(&app) {
+        Ok(granted) => {
+            ui.set_all_files_access(granted);
+        }
+        Err(err) => {
+            eprintln!("Could not check all-files access: {err}");
+            ui.set_all_files_access(false);
+        }
+    }
+
+    ui.on_request_all_files_access({
+        let app = app.clone();
+
+        move || {
+            if let Err(err) = open_all_files_access_settings(&app) {
+                eprintln!("Could not open all-files settings: {err}");
+            }
+        }
+    });
+
+    ui.on_browse_folder({
+        let app = app.clone();
+        let ui_weak = ui_weak.clone();
+
+        move |_dummy| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_browsing_folder(true);
+            }
+
+            if let Err(err) = open_android_folder_picker(&app) {
+                eprintln!("Could not open folder picker: {err}");
+                append_debug_entry(format!("[PICKER ERROR] {err}"));
+
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_browsing_folder(false);
                 }
             }
         }
+    });
 
-        // Second pass: read partial content and group
-        // Map: partial content -> list of (path, size) pairs
-        let mut content_to_paths: HashMap<Vec<u8>, Vec<(PathBuf, u64)>> = HashMap::new();
+    ui
+}
 
-        for (path, size) in files_with_sizes {
-            match self.read_partial(&path, size) {
-                Ok(partial_content) => {
-                    content_to_paths
-                        .entry(partial_content)
-                        .or_insert_with(Vec::new)
-                        .push((path, size));
-                }
-                Err(e) => {
-                    eprintln!("Warning: Could not read partial content from file {}: {}", path.display(), e);
-                    continue;
-                }
-            }
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn duped_on_folder_picker_result(
+    request_code: jni::sys::jint,
+    result_code: jni::sys::jint,
+    data: jni::sys::jobject,
+) {
+    const RESULT_OK: jni::sys::jint = -1;
+
+    if request_code != android_folder_picker::FOLDER_PICKER_REQUEST_CODE {
+        return;
+    }
+
+    if result_code != RESULT_OK {
+        append_debug_entry("[PICKED] Folder selection cancelled".to_string());
+
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
         }
 
-        // Filter to only groups with 2+ files (duplicates) and convert to DuplicateGroup
-        let duplicate_groups: Vec<DuplicateGroup> = content_to_paths
-            .into_values()
-            .filter(|group| group.len() >= 2)
-            .map(|group| {
-                let size_bytes = group.get(0).map(|(_, size)| *size).unwrap_or(0);
-                let paths: Vec<PathBuf> = group.into_iter().map(|(path, _)| path).collect();
-                DuplicateGroup::new(paths, size_bytes)
-            })
-            .collect();
+        return;
+    }
 
-        Ok(duplicate_groups)
+    if data.is_null() {
+        append_debug_entry("[PICKED] No folder URI returned".to_string());
+
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
+
+        return;
+    }
+
+    let Some(app) = ANDROID_APP.get() else {
+        append_debug_entry("[PICKER ERROR] Android app not initialized".to_string());
+
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
+
+        return;
+    };
+
+    // SAFETY: AndroidApp supplies a valid JVM pointer.
+    let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast()) };
+
+    let Ok(vm) = vm else {
+        append_debug_entry("[PICKER ERROR] Could not obtain JavaVM".to_string());
+
+        if let Some(ui) = MAIN_WINDOW.get().and_then(|w| w.upgrade()) {
+            ui.set_browsing_folder(false);
+        }
+
+        return;
+    };
+
+    let mut env = match vm.attach_current_thread() {
+        Ok(env) => env,
+        Err(err) => {
+            append_debug_entry(format!("[PICKER ERROR] Could not attach JNI thread: {err}"));
+            return;
+        }
+    };
+
+    // SAFETY: `data` is a local JNI reference owned by this callback.
+    let data = unsafe { jni::objects::JObject::from_raw(data) };
+
+    let picked = env.with_local_frame(16, |env| -> jni::errors::Result<_> {
+        Ok(activity_result::handle_folder_picker_result(env, data))
+    });
+
+    let picked = match picked {
+        Ok(Some(picked)) => picked,
+        Ok(None) => {
+            append_debug_entry("[PICKED] No usable folder URI".to_string());
+            return;
+        }
+        Err(err) => {
+            append_debug_entry(format!("[PICKER ERROR] {err}"));
+            return;
+        }
+    };
+
+    append_debug_entry(format!("[PICKED] {}", picked.tree_uri));
+
+    let local_path = match activity_result::tree_uri_to_local_path(&picked.tree_uri) {
+        Ok(path) => path,
+        Err(err) => {
+            append_debug_entry(format!("[PICKED] Cannot scan as local path: {err}"));
+            return;
+        }
+    };
+
+    append_debug_entry(format!("[PICKED PATH] {local_path}"));
+
+    if let Err(err) = slint::invoke_from_event_loop(move || {
+        let Some(ui_weak) = MAIN_WINDOW.get() else {
+            return;
+        };
+
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let scan_running = Arc::new(AtomicBool::new(false));
+
+        start_scan(
+            ui_weak,
+            cancel_flag,
+            scan_running,
+            ScanKind::Picked,
+            local_path,
+        );
+    }) {
+        eprintln!("Could not schedule picked-folder scan: {err}");
     }
 }
 
-impl PartialContentStrategy {
-    /// Read first or last n bytes from a file.
-    /// Positive n: read first n bytes
-    /// Negative n: read last |n| bytes
-    fn read_partial(&self, path: &Path, file_size: u64) -> std::io::Result<Vec<u8>> {
-        let bytes_to_read = self.bytes.abs() as u64;
-        let actual_bytes = std::cmp::min(bytes_to_read, file_size);
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_example_duped_MainActivity_nativeOnActivityResult(
+    _env: jni::JNIEnv<'_>,
+    _class: jni::objects::JClass<'_>,
+    request_code: jni::sys::jint,
+    result_code: jni::sys::jint,
+    data: jni::objects::JObject<'_>,
+) {
+    duped_on_folder_picker_result(request_code, result_code, data.into_raw());
+}
 
-        let mut file = fs::File::open(path)?;
-        let mut buffer = vec![0u8; actual_bytes as usize];
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+fn android_main(app: slint::android::AndroidApp) {
+    let _ = ANDROID_APP.set(app.clone());
 
-        if self.bytes < 0 {
-            // Read from the end
-            let seek_pos = file_size - actual_bytes;
-            file.seek(std::io::SeekFrom::Start(seek_pos))?;
-        }
-        // else: read from the start (default file position is 0)
+    slint::android::init(app.clone()).unwrap();
 
-        file.read_exact(&mut buffer)?;
-        Ok(buffer)
-    }
+    let ui = ui(app.clone());
+
+    // Retain the timer until the UI event loop exits.
+    let permission_timer = slint::Timer::default();
+
+    permission_timer.start(
+        slint::TimerMode::Repeated,
+        std::time::Duration::from_secs(1),
+        {
+            let ui_weak = ui.as_weak();
+            let app = app.clone();
+
+            move || {
+                let Some(ui) = ui_weak.upgrade() else {
+                    return;
+                };
+
+                match check_all_files_access(&app) {
+                    Ok(granted) => {
+                        ui.set_all_files_access(granted);
+                    }
+                    Err(err) => {
+                        eprintln!("Could not refresh all-files access: {err}");
+                    }
+                }
+            }
+        },
+    );
+
+    ui.run().unwrap();
 }
