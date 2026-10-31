@@ -1,7 +1,7 @@
-use std::fs;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::fs;
 use std::io::{Read, Seek};
+use std::path::{Path, PathBuf};
 
 // #[cfg(test)]
 pub mod test_utils;
@@ -125,12 +125,14 @@ impl ScanStrategy for JwalkStrategy {
     }
 
     fn scan<'a>(&'a self, root: &'a Path) -> Box<dyn Iterator<Item = PathBuf> + 'a> {
-        Box::new(jwalk::WalkDir::new(root)
-            .skip_hidden(false)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .map(|e| e.path().to_path_buf()))
+        Box::new(
+            jwalk::WalkDir::new(root)
+                .skip_hidden(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file())
+                .map(|e| e.path().to_path_buf()),
+        )
     }
 }
 
@@ -164,7 +166,11 @@ pub trait DeduplicateStrategy {
     /// Takes a vector of file paths and returns groups of duplicates.
     /// Only returns groups with 2+ files (excludes unique files).
     /// Files below min_size are skipped without reading their contents.
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>>;
+    fn find_duplicates(
+        &self,
+        files: Vec<PathBuf>,
+        min_size: Option<u64>,
+    ) -> std::io::Result<Vec<DuplicateGroup>>;
 }
 
 /// Reference implementation: compares full file contents.
@@ -175,10 +181,14 @@ impl DeduplicateStrategy for FullContentStrategy {
         "full-content"
     }
 
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
+    fn find_duplicates(
+        &self,
+        files: Vec<PathBuf>,
+        min_size: Option<u64>,
+    ) -> std::io::Result<Vec<DuplicateGroup>> {
         // First pass: get file sizes and filter early
         let mut files_with_sizes: Vec<(PathBuf, u64)> = Vec::new();
-        
+
         for path in files {
             match fs::metadata(&path) {
                 Ok(metadata) => {
@@ -192,12 +202,16 @@ impl DeduplicateStrategy for FullContentStrategy {
                     files_with_sizes.push((path, size));
                 }
                 Err(e) => {
-                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                    eprintln!(
+                        "Warning: Could not get metadata for file {}: {}",
+                        path.display(),
+                        e
+                    );
                     continue;
                 }
             }
         }
-        
+
         // Second pass: read and group by content
         // Map: file contents -> list of (path, size) pairs with that content
         let mut content_to_paths: HashMap<Vec<u8>, Vec<(PathBuf, u64)>> = HashMap::new();
@@ -243,7 +257,11 @@ impl DeduplicateStrategy for SizeOnlyStrategy {
         "size-only"
     }
 
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
+    fn find_duplicates(
+        &self,
+        files: Vec<PathBuf>,
+        min_size: Option<u64>,
+    ) -> std::io::Result<Vec<DuplicateGroup>> {
         // Single pass: get file sizes and group by size
         let mut size_to_paths: HashMap<u64, Vec<PathBuf>> = HashMap::new();
 
@@ -263,7 +281,11 @@ impl DeduplicateStrategy for SizeOnlyStrategy {
                         .push(path);
                 }
                 Err(e) => {
-                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                    eprintln!(
+                        "Warning: Could not get metadata for file {}: {}",
+                        path.display(),
+                        e
+                    );
                     continue;
                 }
             }
@@ -297,7 +319,11 @@ impl DeduplicateStrategy for PartialContentStrategy {
         "partial-content"
     }
 
-    fn find_duplicates(&self, files: Vec<PathBuf>, min_size: Option<u64>) -> std::io::Result<Vec<DuplicateGroup>> {
+    fn find_duplicates(
+        &self,
+        files: Vec<PathBuf>,
+        min_size: Option<u64>,
+    ) -> std::io::Result<Vec<DuplicateGroup>> {
         // First pass: get file sizes and metadata, filter early
         let mut files_with_sizes: Vec<(PathBuf, u64)> = Vec::new();
 
@@ -314,7 +340,11 @@ impl DeduplicateStrategy for PartialContentStrategy {
                     files_with_sizes.push((path, size));
                 }
                 Err(e) => {
-                    eprintln!("Warning: Could not get metadata for file {}: {}", path.display(), e);
+                    eprintln!(
+                        "Warning: Could not get metadata for file {}: {}",
+                        path.display(),
+                        e
+                    );
                     continue;
                 }
             }
@@ -333,7 +363,11 @@ impl DeduplicateStrategy for PartialContentStrategy {
                         .push((path, size));
                 }
                 Err(e) => {
-                    eprintln!("Warning: Could not read partial content from file {}: {}", path.display(), e);
+                    eprintln!(
+                        "Warning: Could not read partial content from file {}: {}",
+                        path.display(),
+                        e
+                    );
                     continue;
                 }
             }
