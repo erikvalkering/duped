@@ -39,9 +39,7 @@ impl ScanKind {
             Self::Documents => {
                 ui.set_scanning_documents(scanning);
             }
-            Self::Root => {
-
-            }
+            Self::Root => {}
             Self::Picked => {}
         }
     }
@@ -142,8 +140,6 @@ fn start_scan(
                         "[?]"
                     };
 
-                    
-
                     if entry.file_type().is_file() {
                         if show_found_files {
                             files.push(entry.path().display().to_string());
@@ -152,11 +148,13 @@ fn start_scan(
                         // Always update the file count, even if not showing files
                         let count = if show_found_files {
                             files.len().min(i32::MAX as usize) as i32
-                        } else {
-                            let Some(ui) = ui_weak.clone().upgrade() else { 0 };
+                        } else if let Some(ui) = ui_weak.clone().upgrade() {
                             let prev = ui.get_files_count();
                             prev + 1
+                        } else {
+                            0
                         };
+
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.clone().upgrade() {
                                 ui.set_files_count(count);
@@ -166,8 +164,8 @@ fn start_scan(
                 }
                 Err(err) => {
                     if enable_debug_logging {
-    debug_entries.push(format!("[ERR] {err}"));
-}
+                        debug_entries.push(format!("[ERR] {err}"));
+                    }
                 }
             }
 
@@ -214,7 +212,10 @@ fn start_scan(
                         entries.push(value);
                     }
                 }
-                entries.push(slint::SharedString::from(format!("[SCAN TIME] {:.2?}", elapsed)));
+                entries.push(slint::SharedString::from(format!(
+                    "[SCAN TIME] {:.2?}",
+                    elapsed
+                )));
                 ui.set_debug_entries(slint::ModelRc::new(slint::VecModel::from(entries)));
             }
             scan_running_done.store(false, Ordering::Relaxed);
@@ -313,7 +314,6 @@ fn ui(app: slint::android::AndroidApp) -> MainWindow {
             );
         }
     });
-
 
     ui.on_cancel_scan({
         let cancel_flag = cancel_flag.clone();
