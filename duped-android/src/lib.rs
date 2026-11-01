@@ -123,6 +123,8 @@ fn start_scan(
         let mut debug_entries: Vec<String> = Vec::new();
 
         let scan_start = std::time::Instant::now();
+        let mut file_count: i32 = 0;
+
         for entry in walkdir::WalkDir::new(&path) {
             if cancel_flag.load(Ordering::Relaxed) {
                 break;
@@ -132,31 +134,19 @@ fn start_scan(
 
             match entry {
                 Ok(entry) => {
-                    let entry_type = if entry.file_type().is_file() {
-                        "[F]"
-                    } else if entry.file_type().is_dir() {
-                        "[D]"
-                    } else {
-                        "[?]"
-                    };
-
                     if entry.file_type().is_file() {
                         if show_found_files {
                             files.push(entry.path().display().to_string());
                             files_update = Some(files.clone());
                         }
                         // Always update the file count, even if not showing files
-                        let count = if show_found_files {
-                            files.len().min(i32::MAX as usize) as i32
-                        } else if let Some(ui) = ui_weak.clone().upgrade() {
-                            let prev = ui.get_files_count();
-                            prev + 1
-                        } else {
-                            0
-                        };
+                        file_count = file_count.saturating_add(1);
+
+                        let count = file_count;
+                        let ui_weak_count = ui_weak.clone();
 
                         let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak.clone().upgrade() {
+                            if let Some(ui) = ui_weak_count.upgrade() {
                                 ui.set_files_count(count);
                             }
                         });
