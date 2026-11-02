@@ -10,6 +10,7 @@ import {
 export component MainWindow inherits MaterialWindow {
     in-out property <bool> show_found_files: true;
     in-out property <bool> enable_debug_logging: false;
+    in-out property <string> scan_strategy: "walkdir"; // "std::fs", "walkdir", "ignore", "jwalk"
     callback scan_downloads();
     callback scan_documents();
 
@@ -106,6 +107,32 @@ export component MainWindow inherits MaterialWindow {
                         Switch {
                             checked <=> root.enable_debug_logging;
                         }
+                    }
+                }
+
+                // Scan strategy radio buttons
+                HorizontalLayout {
+                    spacing: 16px;
+                    Text { text: "Scan strategy:"; vertical-alignment: center; }
+                    RadioButton {
+                        checked: root.scan_strategy == "std::fs";
+                        text: "std::fs";
+                        clicked => { root.scan_strategy = "std::fs"; }
+                    }
+                    RadioButton {
+                        checked: root.scan_strategy == "walkdir";
+                        text: "walkdir";
+                        clicked => { root.scan_strategy = "walkdir"; }
+                    }
+                    RadioButton {
+                        checked: root.scan_strategy == "ignore";
+                        text: "ignore";
+                        clicked => { root.scan_strategy = "ignore"; }
+                    }
+                    RadioButton {
+                        checked: root.scan_strategy == "jwalk";
+                        text: "jwalk";
+                        clicked => { root.scan_strategy = "jwalk"; }
                     }
                 }
 
