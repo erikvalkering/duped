@@ -15,7 +15,7 @@ env:
   ANDROID_API_LEVEL: "35"
   ANDROID_BUILD_TOOLS: "35.0.0"
   RUST_TARGET: "aarch64-linux-android"
-  APK_DIR: "duped-android/target/release/apk"
+  APK_DIR: "target/release/apk"
 
 jobs:
   build:
@@ -35,7 +35,7 @@ jobs:
 
           VERSION="${GITHUB_REF_NAME#v}"
 
-          if [[ ! "$VERSION" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Expected a tag like v0.1.2; got ${GITHUB_REF_NAME}"
             exit 1
           fi
@@ -117,10 +117,10 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            duped-android/target/**/release/deps
-            duped-android/target/**/release/build
-            duped-android/target/**/release/incremental
-            duped-android/target/**/release/.fingerprint
+            target/**/release/deps
+            target/**/release/build
+            target/**/release/incremental
+            target/**/release/.fingerprint
           key: android-rust-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.id }}-${{ env.RUST_TARGET }}-${{ env.ANDROID_API_LEVEL }}-${{ hashFiles('**/Cargo.lock', '**/.cargo/config*') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             android-rust-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.id }}-${{ env.RUST_TARGET }}-${{ env.ANDROID_API_LEVEL }}-${{ hashFiles('**/Cargo.lock', '**/.cargo/config*') }}-
@@ -166,9 +166,9 @@ jobs:
 
           [package.metadata.android.signing.release]
           path = "../signing/duped-release.keystore"
-          keystore_password = "${SIGNING_STORE_PASSWORD}"
-          key_password = "${SIGNING_KEY_PASSWORD}"
-          key_alias = "${SIGNING_KEY_ALIAS}"
+          keystore_password = "$SIGNING_STORE_PASSWORD"
+          key_password = "$SIGNING_KEY_PASSWORD"
+          key_alias = "$SIGNING_KEY_ALIAS"
           EOF
 
       - name: Generate explicit Android manifest
@@ -183,61 +183,96 @@ jobs:
 
           android = "http://schemas.android.com/apk/res/android"
           ET.register_namespace("android", android)
+
           def a(name):
-              return "{" + android + "}" + name
+              return f"{{{android}}}{name}"
 
           config = tomllib.loads(Path("Cargo.toml").read_text())
           version = config["package"]["version"]
           major, minor, patch = map(int, version.split("."))
+
           # Offset the existing workflow's mapping above the published 0.0.108 code.
           version_code = 16777216 + major * 1000000 + minor * 1000 + patch + 1
+
           if not 1 <= version_code <= 2100000000:
               raise SystemExit("Android versionCode out of range")
 
-          manifest = ET.Element("manifest", {
-              "package": config["package"]["metadata"]["android"]["package"],
-              a("versionCode"): str(version_code),
-              a("versionName"): version,
-          })
-          ET.SubElement(manifest, "uses-sdk", {
-              a("minSdkVersion"): "29", a("targetSdkVersion"): "35",
-          })
-          ET.SubElement(manifest, "uses-permission", {
-              a("name"): "android.permission.MANAGE_EXTERNAL_STORAGE",
-          })
-          app = ET.SubElement(manifest, "application", {
-              a("label"): "Duped",
-              a("icon"): "@mipmap/ic_launcher",
-              a("hasCode"): "true",
-              a("debuggable"): "false",
-          })
-          activity = ET.SubElement(app, "activity", {
-              a("name"): manifest.attrib["package"] + ".MainActivity",
-              a("exported"): "true",
-              a("configChanges"): "orientation|keyboardHidden|screenSize",
-          })
-          ET.SubElement(activity, "meta-data", {
-              a("name"): "android.app.lib_name", a("value"): "duped_android",
-          })
+          manifest = ET.Element(
+              "manifest",
+              {
+                  "package": config["package"]["metadata"]["android"]["package"],
+                  a("versionCode"): str(version_code),
+                  a("versionName"): version,
+              },
+          )
+
+          ET.SubElement(
+              manifest,
+              "uses-sdk",
+              {
+                  a("minSdkVersion"): "29",
+                  a("targetSdkVersion"): "35",
+              },
+          )
+
+          ET.SubElement(
+              manifest,
+              "uses-permission",
+              {a("name"): "android.permission.MANAGE_EXTERNAL_STORAGE"},
+          )
+
+          app = ET.SubElement(
+              manifest,
+              "application",
+              {
+                  a("label"): "Duped",
+                  a("icon"): "@mipmap/ic_launcher",
+                  a("hasCode"): "true",
+                  a("debuggable"): "false",
+              },
+          )
+
+          activity = ET.SubElement(
+              app,
+              "activity",
+              {
+                  a("name"): f"{manifest.attrib['package']}.MainActivity",
+                  a("exported"): "true",
+                  a("configChanges"): "orientation|keyboardHidden|screenSize",
+              },
+          )
+
+          ET.SubElement(
+              activity,
+              "meta-data",
+              {
+                  a("name"): "android.app.lib_name",
+                  a("value"): "duped_android",
+              },
+          )
+
           intent = ET.SubElement(activity, "intent-filter")
           ET.SubElement(intent, "action", {a("name"): "android.intent.action.MAIN"})
           ET.SubElement(intent, "category", {a("name"): "android.intent.category.LAUNCHER"})
+
           ET.indent(manifest)
           ET.ElementTree(manifest).write(
-              "AndroidManifest.xml", encoding="utf-8", xml_declaration=True
+              "AndroidManifest.xml",
+              encoding="utf-8",
+              xml_declaration=True,
           )
+
           print(Path("AndroidManifest.xml").read_text())
           PY
 
       - name: Build signed release APK
-        working-directory: duped-android
         shell: bash
         run: |
           set -euo pipefail
 
-          cargo apk2 build \
-            --release \
-            --target "${{ env.RUST_TARGET }}"
+          # Build the Android workspace member from the repository root so that
+          # its path dependency on the root `duped` crate is resolved correctly.
+          cargo apk2 build --release --target "$RUST_TARGET" -p duped-android
 
       - name: Locate final APK
         id: apk
@@ -246,22 +281,13 @@ jobs:
           set -euo pipefail
 
           echo "APK files produced:"
-          find "${{ env.APK_DIR }}" \
-            -maxdepth 1 \
-            -type f \
-            -name "*.apk" \
-            -print
+          find "$APK_DIR" -maxdepth 1 -type f -name '*.apk' -print
 
           mapfile -d '' -t CANDIDATES < <(
-            find "${{ env.APK_DIR }}" \
-              -maxdepth 1 \
-              -type f \
-              -name "*.apk" \
-              ! -name "*unaligned*.apk" \
-              -print0
+            find "$APK_DIR" -maxdepth 1 -type f -name '*.apk' ! -name '*unaligned.apk' -print0
           )
 
-          if [ "${#CANDIDATES[@]}" -ne 1 ]; then
+          if (( ${#CANDIDATES[@]} != 1 )); then
             echo "Expected exactly one final APK."
             echo "Found ${#CANDIDATES[@]} candidates:"
             printf '%s\n' "${CANDIDATES[@]}"
@@ -269,12 +295,10 @@ jobs:
           fi
 
           FINAL_APK="${CANDIDATES[0]}"
+          echo "Selected APK: $FINAL_APK"
 
-          echo "Selected APK: ${FINAL_APK}"
-
-          cp "${FINAL_APK}" duped.apk
+          cp "$FINAL_APK" duped.apk
           test -s duped.apk
-
           echo "path=duped.apk" >> "$GITHUB_OUTPUT"
 
       - name: Inspect APK contents
@@ -284,7 +308,7 @@ jobs:
 
           unzip -l "${{ steps.apk.outputs.path }}" \
             | grep -E \
-              'AndroidManifest.xml|lib/.+.so' \
+              'AndroidManifest.xml|lib/.+\.so' \
             || true
 
       - name: Inspect APK metadata
@@ -294,16 +318,16 @@ jobs:
 
           AAPT="${ANDROID_HOME}/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/aapt"
 
-          test -x "${AAPT}"
+          test -x "$AAPT"
 
           echo "APK badging:"
-          "${AAPT}" dump badging duped.apk
+          "$AAPT" dump badging duped.apk
 
           echo "APK permissions:"
-          "${AAPT}" dump permissions duped.apk
+          "$AAPT" dump permissions duped.apk
 
           echo "APK manifest:"
-          "${AAPT}" dump xmltree duped.apk AndroidManifest.xml
+          "$AAPT" dump xmltree duped.apk AndroidManifest.xml
 
       - name: Verify APK signature
         shell: bash
@@ -312,9 +336,9 @@ jobs:
 
           APKSIGNER="${ANDROID_HOME}/build-tools/${{ env.ANDROID_BUILD_TOOLS }}/apksigner"
 
-          test -x "${APKSIGNER}"
+          test -x "$APKSIGNER"
 
-          "${APKSIGNER}" verify \
+          "$APKSIGNER" verify \
             --verbose \
             --print-certs \
             duped.apk
