@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-duped = { path = ".." }
+duped = { path = "../duped" }
 slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 walkdir = "2"
 jni = "0.21"
