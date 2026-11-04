@@ -272,7 +272,7 @@ jobs:
 
           # Build the Android workspace member from the repository root so that
           # its path dependency on the root `duped` crate is resolved correctly.
-          cargo apk2 build --release --target "$RUST_TARGET" -p duped-android
+          cargo apk2 build --release --target "$RUST_TARGET"
 
       - name: Locate final APK
         id: apk
