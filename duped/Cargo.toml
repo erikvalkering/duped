@@ -21,6 +21,3 @@ serde_json = "1"
 [[bench]]
 name = "dir_scanning"
 harness = false
-
-[workspace]
-members = [".", "duped-android"]
