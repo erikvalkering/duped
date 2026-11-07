@@ -4,23 +4,23 @@ import {
     FilledButton,
     IconButton,
     MaterialPalette,
-    RadioButton,
-    RadioGroup,
     Switch,
 } from "@material";
+
+import { RadioGroup } from "std-widgets.slint";
 
 export component MainWindow inherits MaterialWindow {
     in-out property <bool> show_found_files: true;
     in-out property <bool> enable_debug_logging: false;
-    in-out property <string> scan_strategy: "walkdir"; // "std::fs", "walkdir", "ignore", "jwalk"
+    in-out property <string> scan_strategy: "walkdir";
+
     callback scan_downloads();
     callback scan_documents();
-
     callback browse_folder(string);
     callback cancel_scan();
     callback request_all_files_access();
-    in-out property <bool> scanning_documents: false;
 
+    in-out property <bool> scanning_documents: false;
     in-out property <bool> scanning_downloads: false;
     in-out property <int> files_count: 0;
     in-out property <[string]> files_list: [];
@@ -112,34 +112,36 @@ export component MainWindow inherits MaterialWindow {
                     }
                 }
 
-                // Scan strategy radio buttons
-                HorizontalLayout {
-                    spacing: 16px;
-                    Text { text: "Scan strategy:"; vertical-alignment: center; }
-                    RadioGroup {
-                        HorizontalLayout {
-                            spacing: 8px;
-                            RadioButton {
-                                checked: root.scan_strategy == "std::fs";
-                                text: "std::fs";
-                                clicked => { root.scan_strategy = "std::fs"; }
-                            }
-                            RadioButton {
-                                checked: root.scan_strategy == "walkdir";
-                                text: "walkdir";
-                                clicked => { root.scan_strategy = "walkdir"; }
-                            }
-                            RadioButton {
-                                checked: root.scan_strategy == "ignore";
-                                text: "ignore";
-                                clicked => { root.scan_strategy = "ignore"; }
-                            }
-                            RadioButton {
-                                checked: root.scan_strategy == "jwalk";
-                                text: "jwalk";
-                                clicked => { root.scan_strategy = "jwalk"; }
-                            }
-                        }
+                // RadioButton pseudo-elements are direct children of RadioGroup.
+                RadioGroup {
+                    title: "Scan strategy";
+                    orientation: Orientation.horizontal;
+                    enabled: !root.scanning_downloads
+                        && !root.scanning_documents
+                        && !root.browsing_folder;
+
+                    RadioButton {
+                        text: "std::fs";
+                        checked: root.scan_strategy == "std::fs";
+                    }
+
+                    RadioButton {
+                        text: "walkdir";
+                        checked: root.scan_strategy == "walkdir";
+                    }
+
+                    RadioButton {
+                        text: "ignore";
+                        checked: root.scan_strategy == "ignore";
+                    }
+
+                    RadioButton {
+                        text: "jwalk";
+                        checked: root.scan_strategy == "jwalk";
+                    }
+
+                    selected(value) => {
+                        root.scan_strategy = value;
                     }
                 }
 
@@ -153,6 +155,7 @@ export component MainWindow inherits MaterialWindow {
                         ? "All Files Access Granted"
                         : "Request All Files Access";
                     enabled: !all_files_access;
+
                     clicked => request_all_files_access();
                 }
 
