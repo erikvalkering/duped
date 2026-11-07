@@ -84,15 +84,17 @@ fn start_scan(
     kind: ScanKind,
     path: String,
 ) {
-    // Read UI toggles for controlling file list and debug logging
-    let (show_found_files, enable_debug_logging) = {
+    // Read UI toggles for controlling file list, debug logging, and scan strategy
+    let (show_found_files, enable_debug_logging, scan_strategy) = {
         let mut show_found_files = true;
         let mut enable_debug_logging = false;
+        let mut scan_strategy = "walkdir".to_string();
         if let Some(ui) = ui_weak.upgrade() {
             show_found_files = ui.get_show_found_files();
             enable_debug_logging = ui.get_enable_debug_logging();
+            scan_strategy = ui.get_scan_strategy().to_string();
         }
-        (show_found_files, enable_debug_logging)
+        (show_found_files, enable_debug_logging, scan_strategy)
     };
 
     // Only one scan may run at a time.
@@ -125,7 +127,16 @@ fn start_scan(
         let scan_start = std::time::Instant::now();
         let mut file_count: i32 = 0;
 
-        for entry in walkdir::WalkDir::new(&path) {
+        // Use duped crate strategies
+        let strategy: Box<dyn duped::ScanStrategy> = match scan_strategy.as_str() {
+            "std::fs" => Box::new(duped::StdFsStrategy),
+            "walkdir" => Box::new(duped::WalkDirStrategy),
+            "ignore" => Box::new(duped::IgnoreStrategy),
+            "jwalk" => Box::new(duped::JwalkStrategy),
+            _ => Box::new(duped::WalkDirStrategy),
+        };
+
+        for entry in strategy.scan(std::path::Path::new(&path)) {
             if cancel_flag.load(Ordering::Relaxed) {
                 break;
             }
