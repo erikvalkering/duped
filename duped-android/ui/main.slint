@@ -114,25 +114,30 @@ export component MainWindow inherits MaterialWindow {
                 HorizontalLayout {
                     spacing: 16px;
                     Text { text: "Scan strategy:"; vertical-alignment: center; }
-                    RadioButton {
-                        checked: root.scan_strategy == "std::fs";
-                        text: "std::fs";
-                        clicked => { root.scan_strategy = "std::fs"; }
-                    }
-                    RadioButton {
-                        checked: root.scan_strategy == "walkdir";
-                        text: "walkdir";
-                        clicked => { root.scan_strategy = "walkdir"; }
-                    }
-                    RadioButton {
-                        checked: root.scan_strategy == "ignore";
-                        text: "ignore";
-                        clicked => { root.scan_strategy = "ignore"; }
-                    }
-                    RadioButton {
-                        checked: root.scan_strategy == "jwalk";
-                        text: "jwalk";
-                        clicked => { root.scan_strategy = "jwalk"; }
+                    RadioGroup {
+                        HorizontalLayout {
+                            spacing: 8px;
+                            RadioButton {
+                                checked: root.scan_strategy == "std::fs";
+                                text: "std::fs";
+                                clicked => { root.scan_strategy = "std::fs"; }
+                            }
+                            RadioButton {
+                                checked: root.scan_strategy == "walkdir";
+                                text: "walkdir";
+                                clicked => { root.scan_strategy = "walkdir"; }
+                            }
+                            RadioButton {
+                                checked: root.scan_strategy == "ignore";
+                                text: "ignore";
+                                clicked => { root.scan_strategy = "ignore"; }
+                            }
+                            RadioButton {
+                                checked: root.scan_strategy == "jwalk";
+                                text: "jwalk";
+                                clicked => { root.scan_strategy = "jwalk"; }
+                            }
+                        }
                     }
                 }
 
