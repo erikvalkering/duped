@@ -143,32 +143,21 @@ fn start_scan(
 
             let mut files_update = None;
 
-            match entry {
-                Ok(entry) => {
-                    if entry.file_type().is_file() {
-                        if show_found_files {
-                            files.push(entry.path().display().to_string());
-                            files_update = Some(files.clone());
-                        }
-                        // Always update the file count, even if not showing files
-                        file_count = file_count.saturating_add(1);
-
-                        let count = file_count;
-                        let ui_weak_count = ui_weak.clone();
-
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak_count.upgrade() {
-                                ui.set_files_count(count);
-                            }
-                        });
-                    }
-                }
-                Err(err) => {
-                    if enable_debug_logging {
-                        debug_entries.push(format!("[ERR] {err}"));
-                    }
-                }
+            if show_found_files {
+                files.push(entry.display().to_string());
+                files_update = Some(files.clone());
             }
+            // Always update the file count, even if not showing files
+            file_count = file_count.saturating_add(1);
+
+            let count = file_count;
+            let ui_weak_count = ui_weak.clone();
+
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak_count.upgrade() {
+                    ui.set_files_count(count);
+                }
+            });
 
             let debug_update = debug_entries.clone();
             let ui_weak_update = ui_weak.clone();
