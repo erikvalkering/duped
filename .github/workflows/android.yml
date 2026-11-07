@@ -278,6 +278,7 @@ jobs:
       - name: Locate final APK
         id: apk
         shell: bash
+        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -304,6 +305,7 @@ jobs:
 
       - name: Inspect APK contents
         shell: bash
+        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -314,6 +316,7 @@ jobs:
 
       - name: Inspect APK metadata
         shell: bash
+        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -332,6 +335,7 @@ jobs:
 
       - name: Verify APK signature
         shell: bash
+        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -346,12 +350,14 @@ jobs:
 
       - name: Calculate APK checksum
         shell: bash
+        working-directory: duped-android
         run: |
           set -euo pipefail
           sha256sum duped.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
+        working-directory: duped-android
         with:
           name: duped-android-release
           path: duped.apk
