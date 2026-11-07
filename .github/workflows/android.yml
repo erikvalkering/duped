@@ -15,12 +15,18 @@ env:
   ANDROID_API_LEVEL: "35"
   ANDROID_BUILD_TOOLS: "35.0.0"
   RUST_TARGET: "aarch64-linux-android"
-  APK_DIR: "duped-android/target/release/apk"
+  CARGO_TARGET_DIR: "${{ github.workspace }}/target"
+  APK_DIR: "${{ github.workspace }}/target/release/apk"
 
 jobs:
   build:
     name: Build, sign, verify, and publish APK
     runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ github.workspace }}
 
     steps:
       - name: Checkout source
@@ -28,7 +34,7 @@ jobs:
 
       - name: Set Android version from tag
         if: startsWith(github.ref, 'refs/tags/v')
-        working-directory: duped-android
+        working-directory: ${{ github.workspace }}/duped-android
         shell: bash
         run: |
           set -euo pipefail
@@ -153,7 +159,7 @@ jobs:
             -storepass "$SIGNING_STORE_PASSWORD"
 
       - name: Inject release signing configuration
-        working-directory: duped-android
+        working-directory: ${{ github.workspace }}/duped-android
         shell: bash
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -165,14 +171,14 @@ jobs:
           cat >> Cargo.toml <<EOF
 
           [package.metadata.android.signing.release]
-          path = "../signing/duped-release.keystore"
+          path = "$GITHUB_WORKSPACE/signing/duped-release.keystore"
           keystore_password = "$SIGNING_STORE_PASSWORD"
           key_password = "$SIGNING_KEY_PASSWORD"
           key_alias = "$SIGNING_KEY_ALIAS"
           EOF
 
       - name: Generate explicit Android manifest
-        working-directory: duped-android
+        working-directory: ${{ github.workspace }}/duped-android
         shell: bash
         run: |
           set -euo pipefail
@@ -267,18 +273,16 @@ jobs:
 
       - name: Build signed release APK
         shell: bash
-        working-directory: duped-android
+        working-directory: ${{ github.workspace }}/duped-android
         run: |
           set -euo pipefail
 
-          # Build the Android workspace member from the repository root so that
-          # its path dependency on the root `duped` crate is resolved correctly.
+          # Build from the Android crate, with Cargo output fixed at the repository root.
           cargo apk2 build --release --target "$RUST_TARGET"
 
       - name: Locate final APK
         id: apk
         shell: bash
-        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -299,13 +303,13 @@ jobs:
           FINAL_APK="${CANDIDATES[0]}"
           echo "Selected APK: $FINAL_APK"
 
-          cp "$FINAL_APK" duped.apk
-          test -s duped.apk
-          echo "path=duped.apk" >> "$GITHUB_OUTPUT"
+          OUTPUT_APK="$GITHUB_WORKSPACE/duped.apk"
+          cp "$FINAL_APK" "$OUTPUT_APK"
+          test -s "$OUTPUT_APK"
+          echo "path=$OUTPUT_APK" >> "$GITHUB_OUTPUT"
 
       - name: Inspect APK contents
         shell: bash
-        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -316,7 +320,6 @@ jobs:
 
       - name: Inspect APK metadata
         shell: bash
-        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -325,17 +328,16 @@ jobs:
           test -x "$AAPT"
 
           echo "APK badging:"
-          "$AAPT" dump badging duped.apk
+          "$AAPT" dump badging "${{ steps.apk.outputs.path }}"
 
           echo "APK permissions:"
-          "$AAPT" dump permissions duped.apk
+          "$AAPT" dump permissions "${{ steps.apk.outputs.path }}"
 
           echo "APK manifest:"
-          "$AAPT" dump xmltree duped.apk AndroidManifest.xml
+          "$AAPT" dump xmltree "${{ steps.apk.outputs.path }}" AndroidManifest.xml
 
       - name: Verify APK signature
         shell: bash
-        working-directory: duped-android
         run: |
           set -euo pipefail
 
@@ -346,21 +348,19 @@ jobs:
           "$APKSIGNER" verify \
             --verbose \
             --print-certs \
-            duped.apk
+            "${{ steps.apk.outputs.path }}"
 
       - name: Calculate APK checksum
         shell: bash
-        working-directory: duped-android
         run: |
           set -euo pipefail
-          sha256sum duped.apk
+          sha256sum "${{ steps.apk.outputs.path }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
-        working-directory: duped-android
         with:
           name: duped-android-release
-          path: duped.apk
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
 
       - name: Publish GitHub release
@@ -372,4 +372,4 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          files: duped.apk
+          files: ${{ steps.apk.outputs.path }}
