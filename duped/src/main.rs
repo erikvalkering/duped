@@ -1,6 +1,6 @@
-use clap::{Parser, ValueEnum, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use duped::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 #[derive(Parser)]
@@ -134,7 +134,7 @@ fn main() {
 }
 
 fn find_duplicates(
-    path: &PathBuf,
+    path: &Path,
     strategy: Strategy,
     dedupe: DedupeStrategy,
     _time: bool,
@@ -163,21 +163,28 @@ fn find_duplicates(
 
     // Collect files from the scanner - we need this due to iterator lifetime constraints
     let files: Vec<_> = scan_strategy.scan(path).collect();
-    
+
     // Find duplicates - pass min_size for early filtering
     let duplicate_groups = dedupe_strategy.find_duplicates(files, min_size)?;
 
     if !silent && !duplicate_groups.is_empty() {
         let total_files: usize = duplicate_groups.iter().map(|g| g.file_count()).sum();
-        eprintln!("Found {} files in {} duplicate groups", total_files, duplicate_groups.len());
+        eprintln!(
+            "Found {} files in {} duplicate groups",
+            total_files,
+            duplicate_groups.len()
+        );
     }
 
     // Calculate statistics
     let total_duplicate_files: usize = duplicate_groups.iter().map(|g| g.file_count()).sum();
-    let total_wasted_bytes: u64 = duplicate_groups.iter().map(|g| {
-        // Wasted space = (count - 1) * size_bytes (we keep one original)
-        (g.file_count() as u64 - 1) * g.size_bytes
-    }).sum();
+    let total_wasted_bytes: u64 = duplicate_groups
+        .iter()
+        .map(|g| {
+            // Wasted space = (count - 1) * size_bytes (we keep one original)
+            (g.file_count() as u64 - 1) * g.size_bytes
+        })
+        .sum();
 
     // Output as JSON
     let json = serde_json::json!({
@@ -195,7 +202,7 @@ fn find_duplicates(
 }
 
 fn benchmark_scan(
-    path: &PathBuf,
+    path: &Path,
     strategy: Strategy,
     iterations: u32,
     verbose: bool,
@@ -219,7 +226,7 @@ fn benchmark_scan(
         let start = Instant::now();
         let file_count: usize = scan_strategy.scan(path).count();
         let elapsed = start.elapsed();
-        
+
         times.push(elapsed);
 
         if verbose {
