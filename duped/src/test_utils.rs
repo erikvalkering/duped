@@ -36,7 +36,7 @@ impl TestStructure {
         }
 
         // Number of leaf directories required to hold all files
-        let num_leaf_dirs = (n_files + files_per_dir - 1) / files_per_dir;
+        let num_leaf_dirs = n_files.div_ceil(files_per_dir);
 
         // If everything fits in root, just create files there
         if num_leaf_dirs <= 1 {

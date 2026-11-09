@@ -162,7 +162,7 @@ fn find_duplicates(
     }
 
     // Collect files from the scanner - we need this due to iterator lifetime constraints
-    let files: Vec<_> = scan_strategy.scan(&path).collect();
+    let files: Vec<_> = scan_strategy.scan(path).collect();
     
     // Find duplicates - pass min_size for early filtering
     let duplicate_groups = dedupe_strategy.find_duplicates(files, min_size)?;

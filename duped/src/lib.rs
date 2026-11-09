@@ -194,11 +194,10 @@ impl DeduplicateStrategy for FullContentStrategy {
                 Ok(metadata) => {
                     let size = metadata.len();
                     // Early filter: skip files below minimum size
-                    if let Some(min) = min_size {
-                        if size < min {
+                    if let Some(min) = min_size
+                        && size < min {
                             continue;
                         }
-                    }
                     files_with_sizes.push((path, size));
                 }
                 Err(e) => {
@@ -221,7 +220,7 @@ impl DeduplicateStrategy for FullContentStrategy {
                 Ok(contents) => {
                     content_to_paths
                         .entry(contents)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push((path, size));
                 }
                 Err(e) => {
@@ -237,7 +236,7 @@ impl DeduplicateStrategy for FullContentStrategy {
             .filter(|group| group.len() >= 2)
             .map(|group| {
                 // All files in the group have the same size (same content)
-                let size_bytes = group.get(0).map(|(_, size)| *size).unwrap_or(0);
+                let size_bytes = group.first().map(|(_, size)| *size).unwrap_or(0);
                 let paths: Vec<PathBuf> = group.into_iter().map(|(path, _)| path).collect();
                 DuplicateGroup::new(paths, size_bytes)
             })
@@ -270,14 +269,13 @@ impl DeduplicateStrategy for SizeOnlyStrategy {
                 Ok(metadata) => {
                     let size = metadata.len();
                     // Early filter: skip files below minimum size
-                    if let Some(min) = min_size {
-                        if size < min {
+                    if let Some(min) = min_size
+                        && size < min {
                             continue;
                         }
-                    }
                     size_to_paths
                         .entry(size)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(path);
                 }
                 Err(e) => {
@@ -332,11 +330,10 @@ impl DeduplicateStrategy for PartialContentStrategy {
                 Ok(metadata) => {
                     let size = metadata.len();
                     // Early filter: skip files below minimum size
-                    if let Some(min) = min_size {
-                        if size < min {
+                    if let Some(min) = min_size
+                        && size < min {
                             continue;
                         }
-                    }
                     files_with_sizes.push((path, size));
                 }
                 Err(e) => {
@@ -359,7 +356,7 @@ impl DeduplicateStrategy for PartialContentStrategy {
                 Ok(partial_content) => {
                     content_to_paths
                         .entry(partial_content)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push((path, size));
                 }
                 Err(e) => {
@@ -378,7 +375,7 @@ impl DeduplicateStrategy for PartialContentStrategy {
             .into_values()
             .filter(|group| group.len() >= 2)
             .map(|group| {
-                let size_bytes = group.get(0).map(|(_, size)| *size).unwrap_or(0);
+                let size_bytes = group.first().map(|(_, size)| *size).unwrap_or(0);
                 let paths: Vec<PathBuf> = group.into_iter().map(|(path, _)| path).collect();
                 DuplicateGroup::new(paths, size_bytes)
             })
@@ -393,7 +390,7 @@ impl PartialContentStrategy {
     /// Positive n: read first n bytes
     /// Negative n: read last |n| bytes
     fn read_partial(&self, path: &Path, file_size: u64) -> std::io::Result<Vec<u8>> {
-        let bytes_to_read = self.bytes.abs() as u64;
+        let bytes_to_read = self.bytes.unsigned_abs();
         let actual_bytes = std::cmp::min(bytes_to_read, file_size);
 
         let mut file = fs::File::open(path)?;
