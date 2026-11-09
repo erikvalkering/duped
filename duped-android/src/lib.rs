@@ -85,17 +85,20 @@ fn start_scan(
     path: String,
 ) {
     // Read UI toggles for controlling file list, debug logging, and scan strategy
-    let (show_found_files, enable_debug_logging, scan_strategy) = {
+    let (show_found_files, enable_debug_logging, scan_strategy, operation_mode) = {
         let mut show_found_files = true;
         let mut enable_debug_logging = false;
         let mut scan_strategy = "walkdir".to_string();
+        let mut operation_mode = "files".to_string();
         if let Some(ui) = ui_weak.upgrade() {
             show_found_files = ui.get_show_found_files();
             enable_debug_logging = ui.get_enable_debug_logging();
             scan_strategy = ui.get_scan_strategy().to_string();
+            operation_mode = ui.get_operation_mode().to_string();
         }
-        (show_found_files, enable_debug_logging, scan_strategy)
+        (show_found_files, enable_debug_logging, scan_strategy, operation_mode)
     };
+
 
     // Only one scan may run at a time.
     if scan_running
@@ -136,53 +139,87 @@ fn start_scan(
             _ => Box::new(duped::WalkDirStrategy),
         };
 
-        for entry in strategy.scan(std::path::Path::new(&path)) {
-            if cancel_flag.load(Ordering::Relaxed) {
-                break;
-            }
-
-            let mut files_update = None;
-
-            if show_found_files {
-                files.push(entry.display().to_string());
-                files_update = Some(files.clone());
-            }
-            // Always update the file count, even if not showing files
-            file_count = file_count.saturating_add(1);
-
-            let count = file_count;
-            let ui_weak_count = ui_weak.clone();
-
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = ui_weak_count.upgrade() {
-                    ui.set_files_count(count);
+        if operation_mode == "files" {
+            for entry in strategy.scan(std::path::Path::new(&path)) {
+                if cancel_flag.load(Ordering::Relaxed) {
+                    break;
                 }
-            });
 
-            let debug_update = debug_entries.clone();
-            let ui_weak_update = ui_weak.clone();
+                let mut files_update = None;
 
-            // Construct Slint models on the UI thread.
-            let result = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak_update.upgrade() else {
-                    return;
-                };
-
-                ui.set_debug_entries(string_model(debug_update));
-
-                if let Some(files) = files_update {
-                    let count = files.len().min(i32::MAX as usize) as i32;
-
-                    ui.set_files_count(count);
-                    ui.set_files_list(string_model(files));
+                if show_found_files {
+                    files.push(entry.display().to_string());
+                    files_update = Some(files.clone());
                 }
-            });
+                // Always update the file count, even if not showing files
+                file_count = file_count.saturating_add(1);
 
-            // The event loop may have stopped during shutdown.
-            if result.is_err() {
-                break;
+                let count = file_count;
+                let ui_weak_count = ui_weak.clone();
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_count.upgrade() {
+                        ui.set_files_count(count);
+                    }
+                });
+
+                let debug_update = debug_entries.clone();
+                let ui_weak_update = ui_weak.clone();
+
+                // Construct Slint models on the UI thread.
+                let result = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak_update.upgrade() else {
+                        return;
+                    };
+
+                    ui.set_debug_entries(string_model(debug_update));
+
+                    if let Some(files) = files_update {
+                        let count = files.len().min(i32::MAX as usize) as i32;
+
+                        ui.set_files_count(count);
+                        ui.set_files_list(string_model(files));
+                    }
+                });
+
+                // The event loop may have stopped during shutdown.
+                if result.is_err() {
+                    break;
+                }
+            }
+        } else {
+            // Duplicates mode
+            let files_vec: Vec<_> = strategy.scan(std::path::Path::new(&path)).collect();
+            let deduper = duped::FullContentStrategy;
+            match deduper.find_duplicates(files_vec, None) {
+                Ok(dupe_groups) => {
+                    let mut dupe_files = Vec::new();
+                    for group in dupe_groups {
+                        for file in group.files {
+                            dupe_files.push(file.display().to_string());
+                        }
+                        dupe_files.push("---".to_string()); // Separator between groups
+                    }
+                    let count = dupe_files.len().min(i32::MAX as usize) as i32;
+                    let ui_weak_update = ui_weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak_update.upgrade() {
+                            ui.set_files_count(count);
+                            ui.set_files_list(string_model(dupe_files));
+                        }
+                    });
+                }
+                Err(e) => {
+                    let ui_weak_update = ui_weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak_update.upgrade() {
+                            ui.set_debug_entries(string_model(vec![format!("[ERROR] {e}" )]));
+                        }
+                    });
+                }
             }
         }
+
 
         let scan_running_done = scan_running.clone();
 

@@ -13,6 +13,8 @@ export component MainWindow inherits MaterialWindow {
     in-out property <bool> show_found_files: true;
     in-out property <bool> enable_debug_logging: false;
     in-out property <string> scan_strategy: "walkdir";
+    in-out property <string> operation_mode: "files"; // "files" or "duplicates"
+    in-out property <string> operation_mode: "files"; // "files" or "duplicates"
 
     callback scan_downloads();
     callback scan_documents();
@@ -112,6 +114,23 @@ export component MainWindow inherits MaterialWindow {
                     }
                 }
 
+                // Operation mode selector
+                RadioGroup {
+                    title: "Operation mode";
+                    orientation: Orientation.horizontal;
+                    enabled: !root.scanning_downloads && !root.scanning_documents && !root.browsing_folder;
+                    RadioButton {
+                        text: "Files";
+                        checked: root.operation_mode == "files";
+                    }
+                    RadioButton {
+                        text: "Duplicates";
+                        checked: root.operation_mode == "duplicates";
+                    }
+                    selected(value) => {
+                        root.operation_mode = value;
+                    }
+                }
                 // RadioButton pseudo-elements are direct children of RadioGroup.
                 RadioGroup {
                     title: "Scan strategy";
