@@ -96,9 +96,13 @@ fn start_scan(
             scan_strategy = ui.get_scan_strategy().to_string();
             operation_mode = ui.get_operation_mode().to_string();
         }
-        (show_found_files, enable_debug_logging, scan_strategy, operation_mode)
+        (
+            show_found_files,
+            enable_debug_logging,
+            scan_strategy,
+            operation_mode,
+        )
     };
-
 
     // Only one scan may run at a time.
     if scan_running
@@ -213,13 +217,12 @@ fn start_scan(
                     let ui_weak_update = ui_weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak_update.upgrade() {
-                            ui.set_debug_entries(string_model(vec![format!("[ERROR] {e}" )]));
+                            ui.set_debug_entries(string_model(vec![format!("[ERROR] {e}")]));
                         }
                     });
                 }
             }
         }
-
 
         let scan_running_done = scan_running.clone();
 
