@@ -122,12 +122,12 @@ export component MainWindow inherits MaterialWindow {
                     RadioButton {
                         text: "Files";
                         checked: root.operation_mode == "files";
-                        toggled => { if (self.checked) root.operation_mode = "files"; }
+                        toggled => { if (self.checked) { root.operation_mode = "files"; } }
                     }
                     RadioButton {
                         text: "Duplicates";
                         checked: root.operation_mode == "duplicates";
-                        toggled => { if (self.checked) root.operation_mode = "duplicates"; }
+                        toggled => { if (self.checked) { root.operation_mode = "duplicates"; } }
                     }
                 }
                 // RadioButton pseudo-elements are direct children of RadioGroup.
@@ -141,25 +141,25 @@ export component MainWindow inherits MaterialWindow {
                     RadioButton {
                         text: "std::fs";
                         checked: root.scan_strategy == "std::fs";
-                        toggled => { if (self.checked) root.scan_strategy = "std::fs"; }
+                        toggled => { if (self.checked) { root.scan_strategy = "std::fs"; } }
                     }
 
                     RadioButton {
                         text: "walkdir";
                         checked: root.scan_strategy == "walkdir";
-                        toggled => { if (self.checked) root.scan_strategy = "walkdir"; }
+                        toggled => { if (self.checked) { root.scan_strategy = "walkdir"; } }
                     }
 
                     RadioButton {
                         text: "ignore";
                         checked: root.scan_strategy == "ignore";
-                        toggled => { if (self.checked) root.scan_strategy = "ignore"; }
+                        toggled => { if (self.checked) { root.scan_strategy = "ignore"; } }
                     }
 
                     RadioButton {
                         text: "jwalk";
                         checked: root.scan_strategy == "jwalk";
-                        toggled => { if (self.checked) root.scan_strategy = "jwalk"; }
+                        toggled => { if (self.checked) { root.scan_strategy = "jwalk"; } }
                     }
                 }
 
@@ -174,17 +174,17 @@ export component MainWindow inherits MaterialWindow {
                     RadioButton {
                         text: "Full content";
                         checked: root.dedupe_strategy == "full";
-                        toggled => { if (self.checked) root.dedupe_strategy = "full"; }
+                        toggled => { if (self.checked) { root.dedupe_strategy = "full"; } }
                     }
                     RadioButton {
                         text: "Size only";
                         checked: root.dedupe_strategy == "size";
-                        toggled => { if (self.checked) root.dedupe_strategy = "size"; }
+                        toggled => { if (self.checked) { root.dedupe_strategy = "size"; } }
                     }
                     RadioButton {
                         text: "Partial content";
                         checked: root.dedupe_strategy == "partial";
-                        toggled => { if (self.checked) root.dedupe_strategy = "partial"; }
+                        toggled => { if (self.checked) { root.dedupe_strategy = "partial"; } }
                     }
                 }
 
