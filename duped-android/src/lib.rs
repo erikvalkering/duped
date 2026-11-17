@@ -9,6 +9,7 @@ mod android_permissions;
 
 slint::include_modules!();
 
+use duped::DeduplicateStrategy;
 use slint::{ComponentHandle, Model};
 
 use std::sync::{
