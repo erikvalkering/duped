@@ -86,7 +86,7 @@ fn start_scan(
     path: String,
 ) {
     // Read UI toggles for controlling file list, debug logging, and scan strategy
-    let (show_found_files, enable_debug_logging, scan_strategy, operation_mode) = {
+    let (show_found_files, enable_debug_logging, scan_strategy, operation_mode, dedupe_strategy) = {
         let mut show_found_files = true;
         let mut enable_debug_logging = false;
         let mut scan_strategy = "walkdir".to_string();
