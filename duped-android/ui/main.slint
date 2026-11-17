@@ -14,6 +14,7 @@ export component MainWindow inherits MaterialWindow {
     in-out property <bool> enable_debug_logging: false;
     in-out property <string> scan_strategy: "walkdir";
     in-out property <string> operation_mode: "files"; // "files" or "duplicates"
+    in-out property <string> dedupe_strategy: "full";
 
     callback scan_downloads();
     callback scan_documents();
@@ -160,6 +161,28 @@ export component MainWindow inherits MaterialWindow {
 
                     selected(value) => {
                         root.scan_strategy = value;
+                    }
+                }
+
+                RadioGroup {
+                    title: "Dedupe strategy";
+                    orientation: Orientation.horizontal;
+                    enabled: root.operation_mode == "duplicates" && !root.scanning_downloads && !root.scanning_documents && !root.browsing_folder;
+
+                    RadioButton {
+                        text: "Full content";
+                        checked: root.dedupe_strategy == "full";
+                    }
+                    RadioButton {
+                        text: "Size only";
+                        checked: root.dedupe_strategy == "size";
+                    }
+                    RadioButton {
+                        text: "Partial content";
+                        checked: root.dedupe_strategy == "partial";
+                    }
+                    selected(value) => {
+                        root.dedupe_strategy = value;
                     }
                 }
 

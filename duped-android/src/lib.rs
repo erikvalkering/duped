@@ -91,17 +91,20 @@ fn start_scan(
         let mut enable_debug_logging = false;
         let mut scan_strategy = "walkdir".to_string();
         let mut operation_mode = "files".to_string();
+        let mut dedupe_strategy = "full".to_string();
         if let Some(ui) = ui_weak.upgrade() {
             show_found_files = ui.get_show_found_files();
             enable_debug_logging = ui.get_enable_debug_logging();
             scan_strategy = ui.get_scan_strategy().to_string();
             operation_mode = ui.get_operation_mode().to_string();
+            dedupe_strategy = ui.get_dedupe_strategy().to_string();
         }
         (
             show_found_files,
             enable_debug_logging,
             scan_strategy,
             operation_mode,
+            dedupe_strategy,
         )
     };
 
@@ -142,6 +145,13 @@ fn start_scan(
             "ignore" => Box::new(duped::IgnoreStrategy),
             "jwalk" => Box::new(duped::JwalkStrategy),
             _ => Box::new(duped::WalkDirStrategy),
+        };
+
+        let deduper: Box<dyn duped::DeduplicateStrategy> = match dedupe_strategy.as_str() {
+            "full" => Box::new(duped::FullContentStrategy),
+            "size" => Box::new(duped::SizeOnlyStrategy),
+            "partial" => Box::new(duped::PartialContentStrategy::new(4096)),
+            _ => Box::new(duped::FullContentStrategy),
         };
 
         if operation_mode == "files" {
@@ -195,7 +205,6 @@ fn start_scan(
         } else {
             // Duplicates mode
             let files_vec: Vec<_> = strategy.scan(std::path::Path::new(&path)).collect();
-            let deduper = duped::FullContentStrategy;
             match deduper.find_duplicates(files_vec, None) {
                 Ok(dupe_groups) => {
                     let mut dupe_files = Vec::new();
